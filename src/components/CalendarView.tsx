@@ -13,6 +13,7 @@ import {
   getCategoryLabel,
   getStatusLabel,
 } from "@/lib/thai-date";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import type { AppointmentWithRelations, Court, User } from "@/types/domain";
 
 interface CalendarViewProps {
@@ -211,18 +212,20 @@ export function CalendarView({
           <label className="block text-sm font-semibold text-slate-700 mb-1">
             ศาล
           </label>
-          <select
+          <SearchableSelect
             value={filterCourt}
-            onChange={(e) => setFilterCourt(e.target.value)}
-            className="input-legal w-full px-3 border border-slate-300 bg-white"
-          >
-            <option value="all">ทุกศาล</option>
-            {courts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterCourt}
+            placeholder="เลือกศาล..."
+            searchPlaceholder="ค้นหาชื่อศาล..."
+            allowClearOption={{ value: "all", label: "ทุกศาล" }}
+            options={courts
+              .filter((c) => c.is_active)
+              .map((c) => ({
+                value: c.id,
+                label: c.name,
+                searchText: `${c.name} ${c.province || ""}`,
+              }))}
+          />
         </div>
 
         <div>

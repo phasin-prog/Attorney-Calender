@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { AlertTriangle, Search, Trash2, X } from "lucide-react";
 import { getBangkokToday } from "@/lib/thai-date";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import type {
   AppointmentCategory,
   AppointmentStatus,
@@ -459,25 +460,24 @@ export function AppointmentModal({
                 <label className="block font-semibold text-slate-800 mb-1.5">
                   ศาล (ถ้ามี)
                 </label>
-                <select
+                <SearchableSelect
                   value={courtId}
-                  onChange={(e) => {
-                    const id = e.target.value;
+                  onChange={(id) => {
                     setCourtId(id);
                     const c = courts.find((ct) => ct.id === id);
                     if (c && !location) setLocation(c.name);
                   }}
-                  className="input-legal w-full px-4 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none"
-                >
-                  <option value="">-- ไม่ระบุศาล --</option>
-                  {courts
+                  placeholder="เลือกศาล..."
+                  searchPlaceholder="ค้นหาชื่อศาล..."
+                  allowClearOption={{ value: "", label: "-- ไม่ระบุศาล --" }}
+                  options={courts
                     .filter((c) => c.is_active)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                </select>
+                    .map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                      searchText: `${c.name} ${c.province || ""}`,
+                    }))}
+                />
               </div>
 
               <div>

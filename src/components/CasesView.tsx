@@ -16,6 +16,7 @@ import {
   getCategoryLabel,
   getStatusLabel,
 } from "@/lib/thai-date";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import type {
   AppointmentWithRelations,
   CaseCategory,
@@ -125,31 +126,35 @@ export function CasesView({
 
         {/* Advanced Search Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <select
+          <SearchableSelect
             value={filterCourt}
-            onChange={(e) => setFilterCourt(e.target.value)}
-            className="input-legal px-3 border border-slate-300 bg-white"
-          >
-            <option value="all">ศาลทั้งหมด</option>
-            {courts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterCourt}
+            placeholder="เลือกศาล..."
+            searchPlaceholder="ค้นหาชื่อศาล..."
+            allowClearOption={{ value: "all", label: "ศาลทั้งหมด" }}
+            options={courts
+              .filter((c) => c.is_active)
+              .map((c) => ({
+                value: c.id,
+                label: c.name,
+                searchText: `${c.name} ${c.province || ""}`,
+              }))}
+          />
 
-          <select
+          <SearchableSelect
             value={filterCat}
-            onChange={(e) => setFilterCat(e.target.value)}
-            className="input-legal px-3 border border-slate-300 bg-white"
-          >
-            <option value="all">อักษรย่อทั้งหมด</option>
-            {caseCategories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.abbreviation} ({cat.description})
-              </option>
-            ))}
-          </select>
+            onChange={setFilterCat}
+            placeholder="เลือกอักษรย่อ..."
+            searchPlaceholder="ค้นหาอักษรย่อ..."
+            allowClearOption={{ value: "all", label: "อักษรย่อทั้งหมด" }}
+            options={caseCategories
+              .filter((cat) => cat.is_active)
+              .map((cat) => ({
+                value: cat.id,
+                label: cat.description ? `${cat.abbreviation} (${cat.description})` : cat.abbreviation,
+                searchText: `${cat.abbreviation} ${cat.description || ""}`,
+              }))}
+          />
 
           <input
             type="text"
@@ -349,12 +354,8 @@ function CaseFormModal({
   onSaveStatusChange: (s: "saving" | "saved" | "failed") => void;
 }) {
   const isEditing = Boolean(initialCase);
-  const [courtId, setCourtId] = useState(
-    initialCase?.court_id || courts.find((c) => c.is_active)?.id || ""
-  );
-  const [categoryId, setCategoryId] = useState(
-    initialCase?.category_id || caseCategories.find((c) => c.is_active)?.id || ""
-  );
+  const [courtId, setCourtId] = useState(initialCase?.court_id || "");
+  const [categoryId, setCategoryId] = useState(initialCase?.category_id || "");
   const [blackCaseNumber, setBlackCaseNumber] = useState(
     initialCase?.black_case_number || ""
   );
@@ -372,6 +373,14 @@ function CaseFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!courtId) {
+      setError("กรุณาเลือกศาล");
+      return;
+    }
+    if (!categoryId) {
+      setError("กรุณาเลือกอักษรย่อประเภทคดี");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setDuplicateCase(null);
@@ -471,63 +480,70 @@ function CaseFormModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
               <label className="block font-semibold mb-1.5">ศาล</label>
-              <select
+              <SearchableSelect
                 value={courtId}
-                onChange={(e) => setCourtId(e.target.value)}
-                className="input-legal w-full px-3 border border-slate-300 bg-white"
-              >
-                {courts
+                onChange={setCourtId}
+                placeholder="เลือกศาล..."
+                searchPlaceholder="ค้นหาชื่อศาล..."
+                options={courts
                   .filter((c) => c.is_active)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold mb-1.5">อักษรย่อประเภทคดี</label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="input-legal w-full px-3 border border-slate-300 bg-white"
-              >
-                {caseCategories
-                  .filter((c) => c.is_active)
-                  .map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.abbreviation} ({cat.description})
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold mb-1.5">หมายเลขคดีดำ</label>
-              <input
-                type="text"
-                required
-                value={blackCaseNumber}
-                onChange={(e) => setBlackCaseNumber(e.target.value)}
-                placeholder="เช่น 123"
-                className="input-legal w-full px-4 border border-slate-300"
+                  .map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    searchText: `${c.name} ${c.province || ""}`,
+                  }))}
               />
             </div>
 
-            <div>
-              <label className="block font-semibold mb-1.5">ปีคดี (พ.ศ.)</label>
-              <input
-                type="number"
-                required
-                value={caseYear}
-                onChange={(e) => setCaseYear(Number(e.target.value))}
-                className="input-legal w-full px-4 border border-slate-300"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block font-semibold mb-1.5">อักษรย่อ</label>
+                <SearchableSelect
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  placeholder="เลือกอักษรย่อ..."
+                  searchPlaceholder="ค้นหาอักษรย่อ..."
+                  options={caseCategories
+                    .filter((c) => c.is_active)
+                    .map((cat) => ({
+                      value: cat.id,
+                      label: cat.description
+                        ? `${cat.abbreviation} (${cat.description})`
+                        : cat.abbreviation,
+                      searchText: `${cat.abbreviation} ${cat.description || ""}`,
+                    }))}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1.5">หมายเลขคดีดำ</label>
+                <input
+                  type="text"
+                  required
+                  value={blackCaseNumber}
+                  onChange={(e) => setBlackCaseNumber(e.target.value)}
+                  placeholder="เช่น 123"
+                  className="input-legal w-full px-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1.5">ปี</label>
+                <input
+                  type="number"
+                  required
+                  value={caseYear}
+                  onChange={(e) => setCaseYear(Number(e.target.value))}
+                  className="input-legal w-full px-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
+                />
+              </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div>
               <label className="block font-semibold mb-1.5">ชื่อโจทก์</label>

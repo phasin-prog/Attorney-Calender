@@ -1,11 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { getSupabasePublicKey } from "@/lib/supabase/config";
+import { getSupabasePublicKey, getSupabaseUrl } from "@/lib/supabase/config";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const url = getSupabaseUrl()!;
   const publicKey = getSupabasePublicKey()!;
 
   return createServerClient(url, publicKey, {
@@ -27,7 +27,7 @@ export async function createSupabaseServerClient() {
 }
 
 export function createSupabaseAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const url = getSupabaseUrl()!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) return null;
   return createClient(url, serviceKey, {

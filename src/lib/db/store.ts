@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { addDays, format, parseISO } from "date-fns";
 import { createInitialSeed } from "@/lib/db/seed";
@@ -38,7 +39,9 @@ export class ValidationError extends Error {
   }
 }
 
-const DEFAULT_DATA_DIR = path.join(process.cwd(), ".data");
+const DEFAULT_DATA_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), "lawyer-calendar-data")
+  : path.join(process.cwd(), ".data");
 
 function getDbFilePath(): string {
   const dir = process.env.LAWYER_CALENDAR_DATA_DIR || DEFAULT_DATA_DIR;

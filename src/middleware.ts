@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { getSupabasePublicKey, isSupabaseConfigured } from "@/lib/supabase/config";
+import { getSupabasePublicKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/supabase/config";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseUrl = getSupabaseUrl()!;
   const supabaseKey = getSupabasePublicKey()!;
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {

@@ -188,9 +188,21 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Active office members can read shared resources
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin' AND is_active = TRUE
+  );
+$$;
+
 CREATE POLICY "Active users read users" ON users FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins manage users" ON users FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin' AND u.is_active = TRUE));
+CREATE POLICY "Admins or self insert users" ON users FOR INSERT TO authenticated WITH CHECK (is_admin() OR id = auth.uid());
+CREATE POLICY "Admins or self update users" ON users FOR UPDATE TO authenticated USING (is_admin() OR id = auth.uid());
+CREATE POLICY "Admins delete users" ON users FOR DELETE TO authenticated USING (is_admin());
 
 CREATE POLICY "Authenticated read courts" ON courts FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated write courts" ON courts FOR ALL TO authenticated USING (true);
@@ -202,8 +214,9 @@ CREATE POLICY "Authenticated read appointment_types" ON appointment_types FOR SE
 CREATE POLICY "Authenticated write appointment_types" ON appointment_types FOR ALL TO authenticated USING (true);
 
 CREATE POLICY "Authenticated read holidays" ON public_holidays FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins write holidays" ON public_holidays FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin' AND u.is_active = TRUE));
+CREATE POLICY "Admins insert holidays" ON public_holidays FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "Admins update holidays" ON public_holidays FOR UPDATE TO authenticated USING (is_admin());
+CREATE POLICY "Admins delete holidays" ON public_holidays FOR DELETE TO authenticated USING (is_admin());
 
 CREATE POLICY "Authenticated CRUD cases" ON cases FOR ALL TO authenticated USING (true);
 CREATE POLICY "Authenticated CRUD appointments" ON appointments FOR ALL TO authenticated USING (true);

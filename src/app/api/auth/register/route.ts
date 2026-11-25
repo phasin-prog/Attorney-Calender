@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
           role,
           is_active: true,
         },
-        { onConflict: "id" }
+        { onConflict: "email" }
       );
 
       return NextResponse.json({

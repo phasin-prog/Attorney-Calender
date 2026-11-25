@@ -27,13 +27,23 @@ export async function requireAuthUser(): Promise<
       };
     }
 
-    // Look up profile in public.users
+    // Look up profile in public.users by id or email
     const dbClient = createSupabaseAdminClient() || supabase;
-    const { data: profile } = await dbClient
+    const { data: byId } = await dbClient
       .from("users")
       .select("*")
       .eq("id", authUser.id)
       .maybeSingle();
+
+    const profile =
+      byId ||
+      (
+        await dbClient
+          .from("users")
+          .select("*")
+          .eq("email", authUser.email)
+          .maybeSingle()
+      ).data;
 
     if (profile) {
       if (!profile.is_active) {

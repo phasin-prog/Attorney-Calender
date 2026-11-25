@@ -5,6 +5,12 @@ export const loginSchema = z.object({
   password: z.string().min(4, "กรุณากรอกรหัสผ่านอย่างน้อย 4 ตัวอักษร"),
 });
 
+export const registerSchema = z.object({
+  full_name: z.string().trim().min(2, "กรุณากรอกชื่อ-นามสกุล"),
+  email: z.string().trim().email("กรุณากรอกอีเมลให้ถูกต้อง"),
+  password: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
+});
+
 export const appointmentInputSchema = z.object({
   title: z.string().trim().min(1, "กรุณากรอกชื่อนัดหมาย"),
   appointment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "รูปแบบวันที่ไม่ถูกต้อง"),

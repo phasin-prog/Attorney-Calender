@@ -1,30 +1,56 @@
 "use client";
 
 import React, { useState } from "react";
-import { Scale, Lock, Mail, AlertCircle } from "lucide-react";
+import { Scale, Lock, Mail, User, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export function LoginView({ onSuccess }: { onSuccess: () => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNotice(null);
+
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "เข้าสู่ระบบไม่สำเร็จ");
-        return;
+      if (mode === "login") {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "เข้าสู่ระบบไม่สำเร็จ");
+          return;
+        }
+        onSuccess();
+      } else {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ full_name: fullName, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "สมัครใช้งานไม่สำเร็จ");
+          return;
+        }
+        if (data.needsEmailConfirmation) {
+          setNotice(
+            "สมัครใช้งานสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชี แล้วกลับมาเข้าสู่ระบบ"
+          );
+          setMode("login");
+        } else {
+          onSuccess();
+        }
       }
-      onSuccess();
     } catch {
       setError("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต");
     } finally {
@@ -47,6 +73,40 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
 
+        {/* Mode Switch Tabs: Sign In / Sign Up */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setError(null);
+              setNotice(null);
+            }}
+            className={`py-2.5 rounded-lg font-semibold text-base transition cursor-pointer ${
+              mode === "login"
+                ? "bg-white text-[#0f294a] shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            เข้าสู่ระบบ
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("register");
+              setError(null);
+              setNotice(null);
+            }}
+            className={`py-2.5 rounded-lg font-semibold text-base transition cursor-pointer ${
+              mode === "register"
+                ? "bg-white text-[#0f294a] shadow-sm"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            สมัครใช้งาน
+          </button>
+        </div>
+
         {error && (
           <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
@@ -54,7 +114,34 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
           </div>
         )}
 
+        {notice && (
+          <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+            <span>{notice}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "register" && (
+            <div>
+              <label className="block font-semibold text-slate-800 mb-1.5">
+                ชื่อ-นามสกุล
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="input-legal w-full pl-11 pr-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
+                  placeholder="เช่น ทนายสมชาย วัฒนากูล"
+                  autoComplete="name"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block font-semibold text-slate-800 mb-1.5">
               อีเมลผู้ใช้งาน
@@ -75,18 +162,19 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
 
           <div>
             <label className="block font-semibold text-slate-800 mb-1.5">
-              รหัสผ่าน
+              รหัสผ่าน {mode === "register" && "(อย่างน้อย 6 ตัวอักษร)"}
             </label>
             <div className="relative">
               <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
               <input
                 type="password"
                 required
+                minLength={mode === "register" ? 6 : 4}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-legal w-full pl-11 pr-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
                 placeholder="กรอกรหัสผ่าน"
-                autoComplete="current-password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
             </div>
           </div>
@@ -96,7 +184,13 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
             disabled={loading}
             className="btn-legal w-full bg-[#0f294a] hover:bg-[#173b69] text-white text-lg disabled:opacity-60 cursor-pointer"
           >
-            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+            {loading
+              ? mode === "login"
+                ? "กำลังเข้าสู่ระบบ..."
+                : "กำลังสมัครใช้งาน..."
+              : mode === "login"
+              ? "เข้าสู่ระบบ"
+              : "สมัครใช้งาน"}
           </button>
         </form>
       </div>

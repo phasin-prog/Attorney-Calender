@@ -1,4 +1,5 @@
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
+import courts277 from "@/lib/db/courts-277.json";
 import { getBangkokToday } from "@/lib/thai-date";
 import type { DatabaseState } from "@/types/domain";
 
@@ -90,13 +91,26 @@ export function createInitialSeed(): DatabaseState {
       "napassorn@lawfirm.th": "123456",
       "kamonwan@lawfirm.th": "123456",
     },
-    courts: [
-      { id: c1, name: "ศาลแพ่ง", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
-      { id: c2, name: "ศาลอาญา", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
-      { id: c3, name: "ศาลจังหวัดนนทบุรี", province: "นนทบุรี", is_active: true, created_at: nowIso },
-      { id: c4, name: "ศาลแขวงพระนครเหนือ", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
-      { id: c5, name: "ศาลแรงงานกลาง", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
-    ],
+    courts: (() => {
+      const base = [
+        { id: c1, name: "ศาลแพ่ง", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
+        { id: c2, name: "ศาลอาญา", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
+        { id: c3, name: "ศาลจังหวัดนนทบุรี", province: "นนทบุรี", is_active: true, created_at: nowIso },
+        { id: c4, name: "ศาลแขวงพระนครเหนือ", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
+        { id: c5, name: "ศาลแรงงานกลาง", province: "กรุงเทพมหานคร", is_active: true, created_at: nowIso },
+      ];
+      const existingNames = new Set(base.map((b) => b.name));
+      const extra = (courts277 as Array<{ num: number; name: string; province: string }>)
+        .filter((c) => c.name && !existingNames.has(c.name))
+        .map((c) => ({
+          id: `10000000-0000-0000-0001-${String(c.num).padStart(12, "0")}`,
+          name: c.name,
+          province: c.province || "",
+          is_active: true,
+          created_at: nowIso,
+        }));
+      return [...base, ...extra];
+    })(),
     case_categories: [
       { id: catCivil, abbreviation: "พ.", description: "คดีแพ่ง", is_active: true },
       { id: catConsumer, abbreviation: "ผบ.", description: "คดีผู้บริโภค", is_active: true },

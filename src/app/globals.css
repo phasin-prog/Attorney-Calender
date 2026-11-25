@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --navy-primary: #0f294a;
+  --navy-hover: #173b69;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-subtle: #e2e8f0;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible legal software defaults: 44-52px buttons, 48-54px inputs, 8-12px radius */
+.btn-legal {
+  min-height: 46px;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.input-legal {
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+/* FullCalendar clean overrides */
+.fc .fc-button-primary {
+  background-color: #0f294a;
+  border-color: #0f294a;
+  min-height: 44px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.fc .fc-button-primary:hover {
+  background-color: #173b69;
+  border-color: #173b69;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f294a;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .print-container {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

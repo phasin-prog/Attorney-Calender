@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireAuthUser } from "@/lib/auth/api-auth";
 import { createCaseRecord } from "@/lib/db/store";
+import { createSupabaseCase } from "@/lib/db/supabase-store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { caseInputSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const d = parsed.data;
-    const created = createCaseRecord(auth.user, {
+    const payload = {
       court_id: d.court_id,
       category_id: d.category_id,
       black_case_number: d.black_case_number,
@@ -28,7 +30,11 @@ export async function POST(req: NextRequest) {
       responsible_user_id: d.responsible_user_id,
       status: d.status,
       notes: d.notes ?? "",
-    });
+    };
+
+    const created = isSupabaseConfigured()
+      ? await createSupabaseCase(auth.user, payload)
+      : createCaseRecord(auth.user, payload);
 
     return NextResponse.json({ case: created }, { status: 201 });
   } catch (err) {

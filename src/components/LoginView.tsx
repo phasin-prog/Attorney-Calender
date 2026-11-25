@@ -3,17 +3,9 @@
 import React, { useState } from "react";
 import { Scale, Lock, Mail, AlertCircle } from "lucide-react";
 
-const DEMO_ACCOUNTS = [
-  { label: "ทนายสมชาย (ผู้ดูแลระบบ)", email: "somchai@lawfirm.th" },
-  { label: "ทนายวิภาวี", email: "wipawee@lawfirm.th" },
-  { label: "ทนายธนกร", email: "thanakorn@lawfirm.th" },
-  { label: "ทนายนภัสสร", email: "napassorn@lawfirm.th" },
-  { label: "กมลวรรณ (เจ้าหน้าที่)", email: "kamonwan@lawfirm.th" },
-];
-
 export function LoginView({ onSuccess }: { onSuccess: () => void }) {
-  const [email, setEmail] = useState("somchai@lawfirm.th");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +34,7 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+      <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-sm p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-xl bg-[#0f294a] text-white flex items-center justify-center">
             <Scale className="w-6 h-6" />
@@ -76,6 +68,7 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-legal w-full pl-11 pr-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
                 placeholder="name@lawfirm.th"
+                autoComplete="email"
               />
             </div>
           </div>
@@ -93,6 +86,7 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-legal w-full pl-11 pr-4 border border-slate-300 focus:border-[#0f294a] focus:outline-none"
                 placeholder="กรอกรหัสผ่าน"
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -105,31 +99,6 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
             {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
         </form>
-
-        <div className="mt-7 pt-6 border-t border-slate-200">
-          <p className="text-sm font-semibold text-slate-600 mb-2.5">
-            บัญชีผู้ใช้งานสำนักงาน (5 บัญชี — รหัสผ่านเริ่มต้น: 123456)
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => {
-                  setEmail(acc.email);
-                  setPassword("123456");
-                }}
-                className={`text-left px-3 py-2.5 rounded-lg border text-sm transition cursor-pointer ${
-                  email === acc.email
-                    ? "border-[#0f294a] bg-slate-50 font-semibold text-[#0f294a]"
-                    : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                }`}
-              >
-                {acc.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

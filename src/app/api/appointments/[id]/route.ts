@@ -5,6 +5,12 @@ import {
   softDeleteAppointmentRecord,
   updateAppointmentRecord,
 } from "@/lib/db/store";
+import {
+  restoreSupabaseAppointment,
+  softDeleteSupabaseAppointment,
+  updateSupabaseAppointment,
+} from "@/lib/db/supabase-store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { appointmentInputSchema } from "@/lib/validation";
 
 export async function PATCH(
@@ -25,7 +31,9 @@ export async function PATCH(
       );
     }
 
-    const updated = updateAppointmentRecord(auth.user, id, parsed.data);
+    const updated = isSupabaseConfigured()
+      ? await updateSupabaseAppointment(auth.user, id, parsed.data)
+      : updateAppointmentRecord(auth.user, id, parsed.data);
     return NextResponse.json({ appointment: updated });
   } catch (err) {
     return handleApiError(err);
@@ -41,7 +49,11 @@ export async function DELETE(
     if (auth.error) return auth.error;
 
     const { id } = await context.params;
-    softDeleteAppointmentRecord(auth.user, id);
+    if (isSupabaseConfigured()) {
+      await softDeleteSupabaseAppointment(auth.user, id);
+    } else {
+      softDeleteAppointmentRecord(auth.user, id);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     return handleApiError(err);
@@ -57,7 +69,9 @@ export async function POST(
     if (auth.error) return auth.error;
 
     const { id } = await context.params;
-    const restored = restoreAppointmentRecord(auth.user, id);
+    const restored = isSupabaseConfigured()
+      ? await restoreSupabaseAppointment(auth.user, id)
+      : restoreAppointmentRecord(auth.user, id);
     return NextResponse.json({ appointment: restored });
   } catch (err) {
     return handleApiError(err);

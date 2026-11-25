@@ -5,6 +5,12 @@ import {
   softDeleteCaseRecord,
   updateCaseRecord,
 } from "@/lib/db/store";
+import {
+  restoreSupabaseCase,
+  softDeleteSupabaseCase,
+  updateSupabaseCase,
+} from "@/lib/db/supabase-store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { caseInputSchema } from "@/lib/validation";
 
 export async function PATCH(
@@ -25,7 +31,9 @@ export async function PATCH(
       );
     }
 
-    const updated = updateCaseRecord(auth.user, id, parsed.data);
+    const updated = isSupabaseConfigured()
+      ? await updateSupabaseCase(auth.user, id, parsed.data)
+      : updateCaseRecord(auth.user, id, parsed.data);
     return NextResponse.json({ case: updated });
   } catch (err) {
     return handleApiError(err);
@@ -41,7 +49,11 @@ export async function DELETE(
     if (auth.error) return auth.error;
 
     const { id } = await context.params;
-    softDeleteCaseRecord(auth.user, id);
+    if (isSupabaseConfigured()) {
+      await softDeleteSupabaseCase(auth.user, id);
+    } else {
+      softDeleteCaseRecord(auth.user, id);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     return handleApiError(err);
@@ -57,7 +69,9 @@ export async function POST(
     if (auth.error) return auth.error;
 
     const { id } = await context.params;
-    const restored = restoreCaseRecord(auth.user, id);
+    const restored = isSupabaseConfigured()
+      ? await restoreSupabaseCase(auth.user, id)
+      : restoreCaseRecord(auth.user, id);
     return NextResponse.json({ case: restored });
   } catch (err) {
     return handleApiError(err);

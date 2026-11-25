@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireAuthUser } from "@/lib/auth/api-auth";
 import { createAppointmentRecord } from "@/lib/db/store";
+import { createSupabaseAppointment } from "@/lib/db/supabase-store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { appointmentInputSchema } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const d = parsed.data;
-    const created = createAppointmentRecord(auth.user, {
+    const payload = {
       title: d.title,
       appointment_date: d.appointment_date,
       category: d.category,
@@ -35,7 +37,11 @@ export async function POST(req: NextRequest) {
       reminder_1_day: d.reminder_1_day,
       reminder_same_day: d.reminder_same_day,
       force_duplicate: d.force_duplicate,
-    });
+    };
+
+    const created = isSupabaseConfigured()
+      ? await createSupabaseAppointment(auth.user, payload)
+      : createAppointmentRecord(auth.user, payload);
 
     return NextResponse.json({ appointment: created }, { status: 201 });
   } catch (err) {

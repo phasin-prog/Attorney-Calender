@@ -107,6 +107,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   visibility TEXT NOT NULL DEFAULT 'shared' CHECK (visibility IN ('shared', 'private')),
   description TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
+  reminder_1_day BOOLEAN NOT NULL DEFAULT TRUE,
+  reminder_same_day BOOLEAN NOT NULL DEFAULT TRUE,
   created_by UUID NOT NULL REFERENCES users(id),
   updated_by UUID NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -7,6 +7,8 @@ import {
   upsertPublicHoliday,
   upsertUserAccount,
 } from "@/lib/db/store";
+import { upsertSupabaseSetting } from "@/lib/db/supabase-store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import {
   appointmentTypeInputSchema,
   caseCategoryInputSchema,
@@ -26,49 +28,58 @@ export async function POST(req: NextRequest) {
       payload: Record<string, unknown>;
     };
 
+    const useSupabase = isSupabaseConfigured();
+
     switch (body.entity) {
       case "court": {
         const parsed = courtInputSchema.safeParse(body.payload);
         if (!parsed.success) {
           return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
         }
-        return NextResponse.json({ item: upsertCourt(auth.user, { ...parsed.data, id: body.id }) });
+        const item = useSupabase
+          ? await upsertSupabaseSetting(auth.user, "court", parsed.data, body.id)
+          : upsertCourt(auth.user, { ...parsed.data, id: body.id });
+        return NextResponse.json({ item });
       }
       case "case_category": {
         const parsed = caseCategoryInputSchema.safeParse(body.payload);
         if (!parsed.success) {
           return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
         }
-        return NextResponse.json({
-          item: upsertCaseCategory(auth.user, { ...parsed.data, id: body.id }),
-        });
+        const item = useSupabase
+          ? await upsertSupabaseSetting(auth.user, "case_category", parsed.data, body.id)
+          : upsertCaseCategory(auth.user, { ...parsed.data, id: body.id });
+        return NextResponse.json({ item });
       }
       case "appointment_type": {
         const parsed = appointmentTypeInputSchema.safeParse(body.payload);
         if (!parsed.success) {
           return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
         }
-        return NextResponse.json({
-          item: upsertAppointmentType(auth.user, { ...parsed.data, id: body.id }),
-        });
+        const item = useSupabase
+          ? await upsertSupabaseSetting(auth.user, "appointment_type", parsed.data, body.id)
+          : upsertAppointmentType(auth.user, { ...parsed.data, id: body.id });
+        return NextResponse.json({ item });
       }
       case "public_holiday": {
         const parsed = holidayInputSchema.safeParse(body.payload);
         if (!parsed.success) {
           return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
         }
-        return NextResponse.json({
-          item: upsertPublicHoliday(auth.user, { ...parsed.data, id: body.id }),
-        });
+        const item = useSupabase
+          ? await upsertSupabaseSetting(auth.user, "public_holiday", parsed.data, body.id)
+          : upsertPublicHoliday(auth.user, { ...parsed.data, id: body.id });
+        return NextResponse.json({ item });
       }
       case "user": {
         const parsed = userInputSchema.safeParse(body.payload);
         if (!parsed.success) {
           return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
         }
-        return NextResponse.json({
-          item: upsertUserAccount(auth.user, { ...parsed.data, id: body.id }),
-        });
+        const item = useSupabase
+          ? await upsertSupabaseSetting(auth.user, "user", parsed.data, body.id)
+          : upsertUserAccount(auth.user, { ...parsed.data, id: body.id });
+        return NextResponse.json({ item });
       }
       default:
         return NextResponse.json({ error: "ประเภทข้อมูลไม่ถูกต้อง" }, { status: 400 });

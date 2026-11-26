@@ -21,7 +21,7 @@ import type {
 type DbClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 async function getDb() {
-  return await createSupabaseServerClient();
+  return createSupabaseAdminClient() || (await createSupabaseServerClient());
 }
 
 function enrichCaseRow(

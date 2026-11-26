@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 import {
   Bell,
   Calendar,
@@ -10,7 +11,6 @@ import {
   Home,
   LayoutDashboard,
   LogIn,
-  LogOut,
   Plus,
   Scale,
   Settings,
@@ -51,10 +51,6 @@ const SettingsView = dynamic(
   () => import("@/components/SettingsView").then((m) => m.SettingsView),
   { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดตั้งค่า...</div> }
 );
-const LoginView = dynamic(
-  () => import("@/components/LoginView").then((m) => m.LoginView),
-  { ssr: false }
-);
 
 interface BootstrapData {
   currentUser: User | null;
@@ -82,11 +78,11 @@ type ConnectionStatus =
   | "Save Failed";
 
 export default function LawyerCalendarApp() {
+  const { isSignedIn, isLoaded: clerkLoaded } = useAuth();
   const [data, setData] = useState<BootstrapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [connStatus, setConnStatus] = useState<ConnectionStatus>("Connecting");
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // Appointment Modal State
   const [apptModalOpen, setApptModalOpen] = useState(false);
@@ -164,18 +160,23 @@ export default function LawyerCalendarApp() {
     };
   }, [loadBootstrap]);
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    if (
-      activeTab === "dashboard" ||
-      activeTab === "cases" ||
-      activeTab === "notifications" ||
-      activeTab === "settings"
-    ) {
-      setActiveTab("home");
+  // Reload bootstrap whenever Clerk sign-in state changes
+  useEffect(() => {
+    if (!clerkLoaded) return;
+    loadBootstrap("full");
+    if (isSignedIn) {
+      setActiveTab((prev) => (prev === "home" ? "dashboard" : prev));
+    } else {
+      setActiveTab((prev) =>
+        prev === "dashboard" ||
+        prev === "cases" ||
+        prev === "notifications" ||
+        prev === "settings"
+          ? "home"
+          : prev
+      );
     }
-    await loadBootstrap("full");
-  }
+  }, [clerkLoaded, isSignedIn, loadBootstrap]);
 
   function handleSaveStatusChange(s: "saving" | "saved" | "failed") {
     if (s === "saving") setConnStatus("Saving");
@@ -186,11 +187,10 @@ export default function LawyerCalendarApp() {
     if (s === "failed") setConnStatus("Save Failed");
   }
 
-  const isReadOnly = !data?.currentUser || Boolean(data?.isReadOnly);
+  const isReadOnly = !isSignedIn || !data?.currentUser || Boolean(data?.isReadOnly);
 
   function openNewAppointment(dateStr?: string, linkedCase?: CaseWithRelations | null) {
     if (isReadOnly) {
-      setLoginModalOpen(true);
       return;
     }
     setEditingAppt(null);
@@ -347,14 +347,23 @@ export default function LawyerCalendarApp() {
                   <Eye className="w-4 h-4 text-slate-500" />
                   <span>ดูอย่างเดียว (Read-Only)</span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setLoginModalOpen(true)}
-                  className="btn-legal px-3 sm:px-4 bg-[#0f294a] hover:bg-[#173b69] text-white text-sm sm:text-base inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>เข้าสู่ระบบ</span>
-                </button>
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="btn-legal px-3 sm:px-4 bg-[#0f294a] hover:bg-[#173b69] text-white text-sm sm:text-base inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>เข้าสู่ระบบ</span>
+                  </button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="btn-legal px-3 sm:px-4 bg-white border border-slate-300 hover:bg-slate-50 text-[#0f294a] text-sm sm:text-base inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>สมัครใช้งาน</span>
+                  </button>
+                </SignUpButton>
               </>
             ) : (
               <>
@@ -367,15 +376,9 @@ export default function LawyerCalendarApp() {
                   <span>เพิ่มนัดหมาย</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="btn-legal px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer"
-                  title="ออกจากระบบ"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline">ออกจากระบบ</span>
-                </button>
+                <div className="flex items-center pl-1">
+                  <UserButton />
+                </div>
               </>
             )}
           </div>
@@ -501,21 +504,9 @@ export default function LawyerCalendarApp() {
           onDeleted={handleAppointmentDeleted}
           onRequestLogin={() => {
             setApptModalOpen(false);
-            setLoginModalOpen(true);
+            window.location.href = "/sign-in";
           }}
           onSaveStatusChange={handleSaveStatusChange}
-        />
-      )}
-
-      {loginModalOpen && (
-        <LoginView
-          asModal
-          onClose={() => setLoginModalOpen(false)}
-          onSuccess={async () => {
-            setLoginModalOpen(false);
-            await loadBootstrap("full");
-            setActiveTab("dashboard");
-          }}
         />
       )}
     </div>

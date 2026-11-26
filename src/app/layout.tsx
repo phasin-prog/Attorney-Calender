@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai, Sarabun } from "next/font/google";
 import "./globals.css";
@@ -31,7 +32,9 @@ export default function RootLayout({
         className="min-h-screen bg-[#f8fafc] text-slate-900"
         style={{ fontFamily: "var(--font-ibm-plex-thai), var(--font-sarabun), sans-serif" }}
       >
-        {children}
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

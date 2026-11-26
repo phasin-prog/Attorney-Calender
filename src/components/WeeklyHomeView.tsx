@@ -250,10 +250,11 @@ export function WeeklyHomeView({
                       const roleLabel = getOurRoleLabel(ourRole);
 
                       return (
-                        <article
+                        <button
                           key={appt.id}
+                          type="button"
                           onClick={() => onSelectAppointment(appt)}
-                          className={`group rounded-xl bg-white border border-slate-200 hover:border-[#0f294a]/50 hover:shadow-md transition p-4 sm:p-5 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
+                          className={`group w-full text-left rounded-xl bg-white border border-slate-200 hover:border-[#0f294a]/50 hover:shadow-md transition p-4 sm:p-5 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
                             appt.status === "cancelled" ? "opacity-60" : ""
                           }`}
                         >
@@ -261,7 +262,7 @@ export function WeeklyHomeView({
                             {/* 1. ศาล - ห้องพิจารณาคดี & 2. เลขคดี (Top Gestalt Priority) */}
                             <div className="flex flex-wrap items-center gap-2">
                               {dayAppointments.length > 1 && (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#0f294a]/10 text-[#0f294a] text-xs font-bold shrink-0">
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#0f294a]/10 text-[#0f294a] text-xs font-bold tabular-nums shrink-0">
                                   {index + 1}
                                 </span>
                               )}
@@ -279,7 +280,7 @@ export function WeeklyHomeView({
                               )}
 
                               {appt.case && (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0f294a] text-white font-bold text-sm sm:text-base">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0f294a] text-white font-bold text-sm sm:text-base tabular-nums">
                                   <Scale className="w-4 h-4 shrink-0" />
                                   <span>เลขคดี {appt.case.formatted_case_number}</span>
                                 </span>
@@ -344,7 +345,7 @@ export function WeeklyHomeView({
 
                             {/* 5. นัดวัน-เวลาไหน (24 ชม. ไม่มีเวลาสิ้นสุด) & ผู้รับผิดชอบ */}
                             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm sm:text-base text-slate-700">
-                              <span className="inline-flex items-center gap-1.5 font-bold text-[#0f294a]">
+                              <span className="inline-flex items-center gap-1.5 font-bold text-[#0f294a] tabular-nums">
                                 <Clock className="w-4 h-4 text-slate-500" />
                                 {formatThaiShortDate(appt.appointment_date)} •{" "}
                                 {formatTime24(appt.start_time)}
@@ -359,21 +360,14 @@ export function WeeklyHomeView({
                             </div>
                           </div>
 
-                          {/* Explicit "ดูรายละเอียด" Action Button */}
+                          {/* Visual "ดูรายละเอียด" Action Pill */}
                           <div className="shrink-0 flex items-center justify-end">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectAppointment(appt);
-                              }}
-                              className="px-4 py-2.5 rounded-xl bg-slate-100 group-hover:bg-[#0f294a] text-[#0f294a] group-hover:text-white font-semibold text-sm inline-flex items-center gap-2 transition cursor-pointer"
-                            >
+                            <span className="px-4 py-2.5 rounded-xl bg-slate-100 group-hover:bg-[#0f294a] text-[#0f294a] group-hover:text-white font-semibold text-sm inline-flex items-center gap-2 transition">
                               <Eye className="w-4 h-4" />
                               <span>ดูรายละเอียด</span>
-                            </button>
+                            </span>
                           </div>
-                        </article>
+                        </button>
                       );
                     })}
                   </div>

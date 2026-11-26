@@ -12,20 +12,83 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     async function initRecovery() {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        if (code && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-          const supabase = createSupabaseBrowserClient();
-          await supabase.auth.exchangeCodeForSession(code);
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+          setSessionReady(true);
+          return;
+        }
+
+        const supabase = createSupabaseBrowserClient();
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(
+          window.location.hash.startsWith("#")
+            ? window.location.hash.slice(1)
+            : window.location.hash
+        );
+
+        const urlError =
+          searchParams.get("error_description") || hashParams.get("error_description");
+        if (urlError) {
+          setError("ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอลิงก์ใหม่อีกครั้ง");
+          return;
+        }
+
+        const code = searchParams.get("code");
+        const tokenHash = searchParams.get("token_hash");
+        const type = searchParams.get("type");
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (code) {
+          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exErr) {
+            setError("ลิงก์รีเซ็ตรหัสผ่านหมดอายุหรือถูกใช้งานไปแล้ว กรุณาขอลิงก์ใหม่");
+            return;
+          }
+          setSessionReady(true);
+          return;
+        }
+
+        if (tokenHash && type === "recovery") {
+          const { error: otpErr } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery",
+          });
+          if (otpErr) {
+            setError("ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอลิงก์ใหม่");
+            return;
+          }
+          setSessionReady(true);
+          return;
+        }
+
+        if (accessToken && refreshToken) {
+          const { error: sessErr } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessErr) {
+            setError("ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอลิงก์ใหม่");
+            return;
+          }
+          setSessionReady(true);
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          setSessionReady(true);
+        } else {
+          setError("ไม่พบสิทธิ์การรีเซ็ตรหัสผ่าน กรุณากดลิงก์จากอีเมลใหม่อีกครั้ง");
         }
       } catch {
-        // Ignore if hash/session is already handled by Supabase client
+        setError("ไม่สามารถตรวจสอบลิงก์รีเซ็ตรหัสผ่านได้ กรุณาลองใหม่อีกครั้ง");
       } finally {
         setChecking(false);
       }
@@ -93,7 +156,7 @@ export default function ResetPasswordPage() {
               ตั้งรหัสผ่านใหม่
             </h1>
             <p className="text-slate-600 text-sm">
-              Lawyer Calendar — ระบบกู้คืนรหัสผ่าน
+              Lawyer Calendar — ระบบกู้คืนรหัสผ่าน (Supabase)
             </p>
           </div>
         </div>
@@ -115,6 +178,21 @@ export default function ResetPasswordPage() {
               className="btn-legal w-full bg-[#0f294a] text-white flex items-center justify-center"
             >
               กลับหน้าหลักทันที
+            </Link>
+          </div>
+        ) : !sessionReady ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <span>
+                {error || "ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว"}
+              </span>
+            </div>
+            <Link
+              href="/"
+              className="btn-legal w-full bg-[#0f294a] hover:bg-[#173b69] text-white flex items-center justify-center"
+            >
+              กลับหน้าหลักเพื่อขอลิงก์ใหม่
             </Link>
           </div>
         ) : (

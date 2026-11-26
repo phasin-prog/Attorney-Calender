@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { SignInButton } from "@clerk/nextjs";
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
   Lock,
+  LogIn,
   Mail,
   Scale,
   User,
@@ -211,6 +213,28 @@ export function LoginView({
           <div className="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
             <span>{notice}</span>
+          </div>
+        )}
+
+        {mode === "login" && (
+          <div className="mb-5 space-y-3">
+            <SignInButton mode="modal">
+              <button
+                type="button"
+                onClick={() => onClose?.()}
+                className="btn-legal w-full bg-white hover:bg-slate-50 text-[#0f294a] border-2 border-[#0f294a] inline-flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>เข้าสู่ระบบด้วย Clerk / Google</span>
+              </button>
+            </SignInButton>
+            <div className="relative flex items-center py-1">
+              <div className="flex-grow border-t border-slate-200" />
+              <span className="shrink mx-3 text-xs font-semibold text-slate-500">
+                หรือเข้าสู่ระบบด้วยอีเมล (Supabase)
+              </span>
+              <div className="flex-grow border-t border-slate-200" />
+            </div>
           </div>
         )}
 

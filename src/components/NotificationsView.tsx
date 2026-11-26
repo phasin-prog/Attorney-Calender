@@ -27,7 +27,7 @@ export function NotificationsView({
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0f294a]">การแจ้งเตือน</h1>
           <p className="text-slate-600 text-base">
@@ -48,7 +48,7 @@ export function NotificationsView({
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-200 overflow-hidden">
         {notifications.length === 0 ? (
           <div className="p-10 text-center text-slate-500 space-y-2">
             <Bell className="w-10 h-10 mx-auto text-slate-300" />

@@ -158,16 +158,13 @@ export function DashboardView({
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <section className="rounded-2xl bg-gradient-to-r from-[#0f294a] via-[#153661] to-[#1e4980] text-white p-6 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      <section className="rounded-2xl bg-gradient-to-r from-[#0f294a] via-[#153661] to-[#1e4980] text-white p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-sky-100 text-xs font-semibold">
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Law Firm Executive Dashboard</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            สวัสดี, {currentUser.full_name}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5">
+            <LayoutDashboard className="w-6 h-6 text-sky-200 shrink-0" />
+            <span>สวัสดี, {currentUser.full_name}</span>
           </h1>
-          <p className="text-sky-100/90 text-sm sm:text-base">
+          <p className="text-sky-100/90 text-sm sm:text-base tabular-nums">
             วันนี้ {formatThaiShortDate(todayStr)} • มีนัดหมายวันนี้{" "}
             <strong className="text-white">{stats.todayCount} นัด</strong> และใน 7 วันข้างหน้า{" "}
             <strong className="text-white">{stats.weekCount} นัด</strong>
@@ -312,10 +309,11 @@ export function DashboardView({
                 const roleLabel = getOurRoleLabel(appt.our_role || appt.case?.our_role);
 
                 return (
-                  <div
+                  <button
                     key={appt.id}
+                    type="button"
                     onClick={() => onSelectAppointment(appt)}
-                    className="p-4 hover:bg-slate-50 transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="group w-full text-left p-4 hover:bg-slate-50 transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div className="space-y-1.5 min-w-0 flex-1">
                       {/* 1. ศาล - ห้องพิจารณาคดี & 2. เลขคดี */}
@@ -355,24 +353,17 @@ export function DashboardView({
                       <div className="font-bold text-slate-900 text-base">
                         {appt.title}
                       </div>
-                      <div className="text-sm font-semibold text-[#0f294a]">
+                      <div className="text-sm font-semibold text-[#0f294a] tabular-nums">
                         {formatThaiShortDate(appt.appointment_date)} •{" "}
                         {formatTime24(appt.start_time)}
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectAppointment(appt);
-                      }}
-                      className="shrink-0 px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-[#0f294a] text-[#0f294a] hover:text-white text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
-                    >
+                    <span className="shrink-0 px-3.5 py-2 rounded-lg bg-slate-100 group-hover:bg-[#0f294a] text-[#0f294a] group-hover:text-white text-xs font-bold inline-flex items-center gap-1.5 transition">
                       <Eye className="w-3.5 h-3.5" />
                       <span>ดูรายละเอียด</span>
-                    </button>
-                  </div>
+                    </span>
+                  </button>
                 );
               })}
             </div>

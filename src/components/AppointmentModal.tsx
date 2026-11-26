@@ -575,7 +575,7 @@ export function AppointmentModal({
           {/* 1. ศาล - ห้องพิจารณาคดี & เลขคดี */}
           <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-[#0f294a] text-base border-b border-slate-100 pb-2">
-              1. ศาล - ห้องพิจารณาคดี และเลขคดี
+              ศาล - ห้องพิจารณาคดี และเลขคดี
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -675,7 +675,7 @@ export function AppointmentModal({
           {/* 2. โจทก์ - จำเลย & ความเกี่ยวข้อง */}
           <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-[#0f294a] text-base border-b border-slate-100 pb-2">
-              2. โจทก์ - จำเลย ความเกี่ยวข้อง และลำดับที่
+              โจทก์ - จำเลย ความเกี่ยวข้อง และลำดับที่
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -733,7 +733,7 @@ export function AppointmentModal({
           {/* 3. นัดเกี่ยวกับอะไร & นัดวัน-เวลาไหน */}
           <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
             <h3 className="font-bold text-[#0f294a] text-base border-b border-slate-100 pb-2">
-              3. นัดเกี่ยวกับอะไร และวัน-เวลานัดหมาย
+              นัดเกี่ยวกับอะไร และวัน-เวลานัดหมาย
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

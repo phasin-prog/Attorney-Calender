@@ -516,9 +516,29 @@ export function SettingsView({
 
           <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl">
             {users.map((u) => (
-              <div key={u.id} className="p-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-bold text-slate-900">{u.full_name}</div>
+              <div key={u.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-slate-900">{u.full_name}</span>
+                    {u.clerk_user_id ? (
+                      <span className="px-2 py-0.5 rounded-md bg-sky-100 border border-sky-300 text-sky-900 text-xs font-bold">
+                        Clerk เชื่อมต่อแล้ว
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold">
+                        Supabase / อีเมล
+                      </span>
+                    )}
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-xs font-semibold border ${
+                        u.is_active
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-red-50 text-red-800 border-red-200"
+                      }`}
+                    >
+                      {u.is_active ? "ใช้งานอยู่" : "ระงับใช้งาน"}
+                    </span>
+                  </div>
                   <div className="text-sm text-slate-600">
                     {u.email} • บทบาท: {u.role === "admin" ? "ผู้ดูแลระบบ" : "ผู้ใช้งานสำนักงาน"}
                   </div>

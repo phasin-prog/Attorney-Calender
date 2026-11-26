@@ -323,37 +323,37 @@ export default function LawyerCalendarApp() {
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       {/* Top Header */}
       <header className="no-print bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0f294a] text-white flex items-center justify-center">
-              <Scale className="w-5 h-5" />
+        <div className="w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#0f294a] text-white flex items-center justify-center shrink-0">
+              <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="font-bold text-lg text-[#0f294a] leading-tight">
+            <div className="min-w-0">
+              <div className="font-bold text-base sm:text-lg text-[#0f294a] leading-tight truncate">
                 Lawyer Calendar
               </div>
-              <div className="text-xs sm:text-sm text-slate-600">
+              <div className="text-xs sm:text-sm text-slate-600 truncate">
                 {data.currentUser ? data.currentUser.full_name : "ผู้เยี่ยมชม (โหมดดูอย่างเดียว)"}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {renderStatusBadge()}
 
             {isReadOnly ? (
               <>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700 border border-slate-300">
                   <Eye className="w-4 h-4 text-slate-500" />
                   <span>ดูอย่างเดียว (Read-Only)</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setLoginModalOpen(true)}
-                  className="btn-legal px-4 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-1.5 cursor-pointer"
+                  className="btn-legal px-3 sm:px-4 bg-[#0f294a] hover:bg-[#173b69] text-white text-sm sm:text-base inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>เข้าสู่ระบบเพื่อแก้ไข</span>
+                  <span>เข้าสู่ระบบ</span>
                 </button>
               </>
             ) : (
@@ -361,16 +361,16 @@ export default function LawyerCalendarApp() {
                 <button
                   type="button"
                   onClick={() => openNewAppointment()}
-                  className="btn-legal px-4 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-1.5 cursor-pointer"
+                  className="btn-legal px-3 sm:px-4 bg-[#0f294a] hover:bg-[#173b69] text-white text-sm sm:text-base inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>เพิ่มนัดหมาย</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="btn-legal px-3.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer"
+                  className="btn-legal px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer"
                   title="ออกจากระบบ"
                 >
                   <LogOut className="w-4 h-4" />
@@ -382,7 +382,7 @@ export default function LawyerCalendarApp() {
         </div>
 
         {/* Main Navigation */}
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 flex overflow-x-auto gap-1 border-t border-slate-100">
+        <nav className="w-full max-w-[1440px] mx-auto px-2 sm:px-6 lg:px-8 flex overflow-x-auto gap-1 border-t border-slate-100">
           {navItems.map((item) => {
             const active = activeTab === item.id;
             return (
@@ -390,7 +390,7 @@ export default function LawyerCalendarApp() {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`px-4 py-3.5 font-semibold text-base inline-flex items-center gap-2 border-b-2 whitespace-nowrap cursor-pointer transition ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3.5 font-semibold text-sm sm:text-base inline-flex items-center gap-1.5 sm:gap-2 border-b-2 whitespace-nowrap cursor-pointer transition ${
                   active
                     ? "border-[#0f294a] text-[#0f294a] bg-slate-50/70"
                     : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
@@ -410,7 +410,7 @@ export default function LawyerCalendarApp() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         {activeTab === "dashboard" && !isReadOnly && data.currentUser && (
           <DashboardView
             currentUser={data.currentUser}

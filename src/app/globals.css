@@ -10,33 +10,38 @@
   --border-subtle: #e2e8f0;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--bg-page);
   color: var(--text-main);
-  font-size: 16px;
+  font-size: clamp(14px, 0.4vw + 13px, 16px);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Accessible legal software defaults: 44-52px buttons, 48-54px inputs, 8-12px radius */
+/* Fluid accessible legal software defaults */
 .btn-legal {
-  min-height: 46px;
+  min-height: clamp(40px, 5dvh, 48px);
   border-radius: 10px;
   font-weight: 600;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .input-legal {
-  min-height: 48px;
+  min-height: clamp(42px, 5.2dvh, 48px);
   border-radius: 10px;
-  font-size: 16px;
+  font-size: clamp(14px, 0.4vw + 13px, 16px);
 }
 
-/* FullCalendar clean overrides */
+/* FullCalendar fluid & mobile-friendly overrides */
 .fc .fc-button-primary {
   background-color: #0f294a;
   border-color: #0f294a;
-  min-height: 44px;
+  min-height: 40px;
   border-radius: 10px;
   font-weight: 600;
 }
@@ -45,9 +50,24 @@ body {
   border-color: #173b69;
 }
 .fc .fc-toolbar-title {
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 1.5vw + 0.65rem, 1.35rem);
   font-weight: 700;
   color: #0f294a;
+}
+
+@media (max-width: 640px) {
+  .fc .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+  .fc .fc-daygrid-day-frame {
+    min-height: 68px;
+  }
 }
 
 @media print {

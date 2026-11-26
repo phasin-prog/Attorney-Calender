@@ -344,13 +344,13 @@ export function AppointmentModal({
     );
 
     return (
-      <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl my-6 overflow-hidden">
+      <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl my-2 sm:my-6 overflow-hidden">
           {/* Header */}
-          <div className="px-6 py-4 bg-[#0f294a] text-white flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#0f294a] text-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <FileText className="w-5 h-5 text-sky-200" />
-              <h2 className="text-xl font-bold">รายละเอียดนัดหมาย</h2>
+              <h2 className="text-lg sm:text-xl font-bold">รายละเอียดนัดหมาย</h2>
             </div>
             <button
               type="button"
@@ -362,7 +362,7 @@ export function AppointmentModal({
             </button>
           </div>
 
-          <div className="p-6 space-y-4 max-h-[82vh] overflow-y-auto bg-slate-50/50">
+          <div className="p-4 sm:p-6 space-y-4 max-h-[calc(100dvh-9rem)] overflow-y-auto bg-slate-50/50">
             {/* Gestalt Group 1: ศาล - ห้องพิจารณาคดี & เลขคดี */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
               {/* 1. ศาล - ห้องพิจารณาคดี */}
@@ -542,10 +542,10 @@ export function AppointmentModal({
 
   // CREATE / EDIT FORM MODE
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl my-6 overflow-hidden">
-        <div className="px-6 py-4 bg-[#0f294a] text-white flex items-center justify-between">
-          <h2 className="text-xl font-bold">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl my-2 sm:my-6 overflow-hidden">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#0f294a] text-white flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold">
             {hasExisting ? "แก้ไขนัดหมาย" : "เพิ่มนัดหมายใหม่"}
           </h2>
           <button
@@ -563,7 +563,7 @@ export function AppointmentModal({
             e.preventDefault();
             submitForm();
           }}
-          className="p-6 space-y-5 max-h-[82vh] overflow-y-auto bg-slate-50/40"
+          className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[calc(100dvh-7rem)] overflow-y-auto bg-slate-50/40"
         >
           {error && (
             <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex items-start gap-2.5">

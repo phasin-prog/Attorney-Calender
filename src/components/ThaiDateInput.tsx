@@ -53,14 +53,14 @@ export function ThaiDateInput({
   }
 
   return (
-    <div className={`space-y-1.5 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1.5">
+    <div className={`space-y-1.5 w-full ${className}`}>
+      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.1fr)] sm:flex sm:flex-wrap items-center gap-1.5">
         <select
           aria-label="วัน"
           disabled={disabled}
           value={day}
           onChange={(e) => emit(ceYear, month, Number(e.target.value))}
-          className="input-legal px-2.5 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none min-w-[68px]"
+          className="input-legal w-full sm:w-auto px-2 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none min-w-0"
         >
           {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
             <option key={d} value={d}>
@@ -74,7 +74,7 @@ export function ThaiDateInput({
           disabled={disabled}
           value={month}
           onChange={(e) => emit(ceYear, Number(e.target.value), day)}
-          className="input-legal px-2.5 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none flex-1 min-w-[120px]"
+          className="input-legal w-full sm:flex-1 px-2 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none min-w-0"
         >
           {THAI_MONTHS.map((mName, idx) => (
             <option key={mName} value={idx + 1}>
@@ -88,7 +88,7 @@ export function ThaiDateInput({
           disabled={disabled}
           value={beYear}
           onChange={(e) => emit(Number(e.target.value) - 543, month, day)}
-          className="input-legal px-2.5 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none min-w-[92px]"
+          className="input-legal w-full sm:w-auto px-2 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none min-w-0"
         >
           {yearOptions.map((y) => (
             <option key={y} value={y}>
@@ -101,7 +101,7 @@ export function ThaiDateInput({
           <button
             type="button"
             onClick={() => onChange(todayStr)}
-            className="px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold inline-flex items-center gap-1 cursor-pointer"
+            className="col-span-3 sm:col-span-1 px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-semibold inline-flex items-center justify-center gap-1 cursor-pointer"
             title="เลือกวันนี้"
           >
             <Calendar className="w-3.5 h-3.5" />

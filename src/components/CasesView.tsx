@@ -875,10 +875,10 @@ function CaseFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl my-6 overflow-hidden">
-        <div className="px-6 py-4 bg-[#0f294a] text-white flex items-center justify-between">
-          <h2 className="text-xl font-bold">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl my-2 sm:my-6 overflow-hidden">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#0f294a] text-white flex items-center justify-between">
+          <h2 className="text-lg sm:text-xl font-bold">
             {isEditing ? "แก้ไขข้อมูลคดี" : "เพิ่มข้อมูลคดีใหม่"}
           </h2>
           <button
@@ -892,7 +892,7 @@ function CaseFormModal({
 
         <form
           onSubmit={handleSubmit}
-          className="p-6 space-y-5 max-h-[82vh] overflow-y-auto bg-slate-50/40"
+          className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[calc(100dvh-7rem)] overflow-y-auto bg-slate-50/40"
         >
           {error && (
             <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 space-y-2">

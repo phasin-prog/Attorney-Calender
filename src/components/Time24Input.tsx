@@ -48,16 +48,16 @@ export function Time24Input({
   }
 
   return (
-    <div className={`space-y-1.5 ${className}`}>
-      <div className="flex items-center gap-1.5">
-        <div className="relative flex items-center gap-1.5 flex-1">
+    <div className={`space-y-1.5 w-full ${className}`}>
+      <div className="flex items-center gap-1.5 w-full">
+        <div className="relative flex items-center gap-1.5 flex-1 min-w-0">
           <Clock className="w-4 h-4 text-slate-400 shrink-0" />
           <select
             aria-label="ชั่วโมง (24 ชั่วโมง)"
             disabled={disabled}
             value={hh}
             onChange={(e) => handleHourChange(e.target.value)}
-            className="input-legal px-2.5 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none flex-1 min-w-[72px]"
+            className="input-legal px-2 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none flex-1 min-w-0"
           >
             <option value="">--</option>
             {HOURS.map((h) => (
@@ -72,7 +72,7 @@ export function Time24Input({
             disabled={disabled}
             value={mm}
             onChange={(e) => handleMinuteChange(e.target.value)}
-            className="input-legal px-2.5 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none flex-1 min-w-[72px]"
+            className="input-legal px-2 border border-slate-300 bg-white focus:border-[#0f294a] focus:outline-none flex-1 min-w-0"
           >
             <option value="">--</option>
             {minuteOptions.map((m) => (

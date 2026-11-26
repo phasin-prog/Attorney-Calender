@@ -317,8 +317,43 @@ export function CalendarView({
         {dailyList.length === 0 ? (
           <p className="text-slate-500">ไม่มีนัดหมายในวันที่เลือก</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <>
+            {/* Mobile Card List (< 640px) */}
+            <div className="sm:hidden space-y-3">
+              {dailyList.map((a) => {
+                const courtName = a.court?.name || a.case?.court?.name || a.location || "-";
+                const roleLabel = getOurRoleLabel(a.our_role || a.case?.our_role);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => onSelectAppointment(a)}
+                    className="w-full text-left p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-100 space-y-1.5 cursor-pointer"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <span className="font-bold text-[#0f294a] text-sm">
+                        {courtName} {a.courtroom ? `(${a.courtroom})` : ""}
+                      </span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#0f294a] text-white">
+                        {a.case?.formatted_case_number || "-"}
+                      </span>
+                    </div>
+                    <div className="font-bold text-slate-900 text-base">{a.title}</div>
+                    <div className="text-xs text-slate-600 flex flex-wrap gap-2">
+                      <span className="font-bold text-[#0f294a]">
+                        {formatTime24(a.start_time)}
+                      </span>
+                      {roleLabel && <span>• {roleLabel}</span>}
+                      {a.sequence_note && <span className="text-rose-700">• {a.sequence_note}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-300 bg-slate-50">
                   <th className="py-2.5 px-3 font-semibold">ศาล / ห้องพิจารณาคดี</th>
@@ -387,6 +422,7 @@ export function CalendarView({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

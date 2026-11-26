@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  addCaseNoteRecord,
   ConflictError,
   createAppointmentRecord,
   createCaseRecord,
@@ -16,9 +17,11 @@ import {
 } from "@/lib/db/store";
 import {
   formatCaseNumber,
+  formatPartiesSummary,
   formatThaiDate,
   formatThaiNumericDate,
   formatTime24,
+  getCourtLevelLabel,
   getOurRoleLabel,
   getWorkWeekDays,
 } from "@/lib/thai-date";
@@ -112,6 +115,48 @@ describe("Case Duplicate Detection & Soft Delete/Restore", () => {
     softDeleteCaseRecord(admin, created.id);
     const restored = restoreCaseRecord(admin, created.id);
     expect(restored.deleted_at).toBeNull();
+  });
+
+  it("supports ordered plaintiffs/defendants, court_level, multi-notes, and masks client_phone for guests", () => {
+    const db = readDb();
+    const admin = db.users[0];
+    const courtId = db.courts[0].id;
+    const catId = db.case_categories[0].id;
+
+    const created = createCaseRecord(admin, {
+      court_id: courtId,
+      category_id: catId,
+      black_case_number: "777",
+      case_year: 2569,
+      plaintiff_name: "",
+      defendant_name: "",
+      plaintiffs: [
+        { order: 1, name: "นาย ก" },
+        { order: 2, name: "นาง ข" },
+      ],
+      defendants: [{ order: 1, name: "บริษัท ค จำกัด" }],
+      court_level: "appeal",
+      our_role: "plaintiff_lawyer",
+      responsible_user_id: admin.id,
+      status: "active",
+      notes: "หมายเหตุเริ่มต้น",
+      client_phone: "081-999-8888",
+      client_contact_name: "คุณก",
+    });
+
+    expect(created.plaintiff_name).toBe("1. นาย ก, 2. นาง ข");
+    expect(formatPartiesSummary(created.defendants)).toBe("1. บริษัท ค จำกัด");
+    expect(getCourtLevelLabel(created.court_level)).toBe("ชั้นอุทธรณ์");
+    expect(created.case_notes).toHaveLength(1);
+
+    const afterSecondNote = addCaseNoteRecord(admin, created.id, "ยื่นคำร้องอุทธรณ์แล้ว");
+    expect(afterSecondNote.case_notes).toHaveLength(2);
+    expect(afterSecondNote.case_notes?.[0].content).toBe("ยื่นคำร้องอุทธรณ์แล้ว");
+
+    const publicData = getPublicBootstrapData();
+    const guestCase = publicData.cases.find((c) => c.id === created.id);
+    expect(guestCase).toBeDefined();
+    expect(guestCase?.client_phone).toBe("");
   });
 });
 

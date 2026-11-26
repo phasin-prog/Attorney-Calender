@@ -8,6 +8,7 @@ import {
   Eye,
   FileText,
   Home,
+  LayoutDashboard,
   LogIn,
   LogOut,
   Plus,
@@ -30,6 +31,10 @@ import type {
   User,
 } from "@/types/domain";
 
+const DashboardView = dynamic(
+  () => import("@/components/DashboardView").then((m) => m.DashboardView),
+  { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดแดชบอร์ด...</div> }
+);
 const CalendarView = dynamic(
   () => import("@/components/CalendarView").then((m) => m.CalendarView),
   { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดปฏิทิน...</div> }
@@ -67,7 +72,7 @@ interface BootstrapData {
   audit_logs: AuditLog[];
 }
 
-type NavTab = "home" | "calendar" | "cases" | "notifications" | "settings";
+type NavTab = "dashboard" | "home" | "calendar" | "cases" | "notifications" | "settings";
 type ConnectionStatus =
   | "Connected"
   | "Connecting"
@@ -161,7 +166,12 @@ export default function LawyerCalendarApp() {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    if (activeTab === "notifications" || activeTab === "settings") {
+    if (
+      activeTab === "dashboard" ||
+      activeTab === "cases" ||
+      activeTab === "notifications" ||
+      activeTab === "settings"
+    ) {
       setActiveTab("home");
     }
     await loadBootstrap("full");
@@ -221,6 +231,31 @@ export default function LawyerCalendarApp() {
     });
   }
 
+  function handleCaseSaved(savedCase?: CaseWithRelations) {
+    if (!savedCase) {
+      loadBootstrap("dynamic");
+      return;
+    }
+    setData((prev) => {
+      if (!prev) return prev;
+      const exists = prev.cases.some((c) => c.id === savedCase.id);
+      const nextCases = exists
+        ? prev.cases.map((c) => (c.id === savedCase.id ? savedCase : c))
+        : [savedCase, ...prev.cases];
+      return { ...prev, cases: nextCases };
+    });
+  }
+
+  function handleCaseDeleted(deletedId: string) {
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        cases: prev.cases.filter((c) => c.id !== deletedId),
+      };
+    });
+  }
+
   if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-[#0f294a] text-xl font-semibold">
@@ -232,11 +267,24 @@ export default function LawyerCalendarApp() {
   const unreadCount = data.notifications.filter((n) => !n.is_read).length;
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: "home", label: "หน้าหลัก", icon: <Home className="w-5 h-5" /> },
-    { id: "calendar", label: "ปฏิทินนัดหมาย", icon: <Calendar className="w-5 h-5" /> },
-    { id: "cases", label: "ข้อมูลคดี", icon: <FileText className="w-5 h-5" /> },
     ...(!isReadOnly
       ? [
+          {
+            id: "dashboard" as NavTab,
+            label: "แดชบอร์ด",
+            icon: <LayoutDashboard className="w-5 h-5" />,
+          },
+        ]
+      : []),
+    { id: "home", label: "หน้าหลัก", icon: <Home className="w-5 h-5" /> },
+    { id: "calendar", label: "ปฏิทินนัดหมาย", icon: <Calendar className="w-5 h-5" /> },
+    ...(!isReadOnly
+      ? [
+          {
+            id: "cases" as NavTab,
+            label: "ข้อมูลคดี",
+            icon: <FileText className="w-5 h-5" />,
+          },
           {
             id: "notifications" as NavTab,
             label: "การแจ้งเตือน",
@@ -363,6 +411,18 @@ export default function LawyerCalendarApp() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+        {activeTab === "dashboard" && !isReadOnly && data.currentUser && (
+          <DashboardView
+            currentUser={data.currentUser}
+            appointments={data.appointments}
+            cases={data.cases}
+            notifications={data.notifications}
+            onNavigateTab={setActiveTab}
+            onAddAppointment={() => openNewAppointment()}
+            onSelectAppointment={openEditAppointment}
+          />
+        )}
+
         {activeTab === "home" && (
           <WeeklyHomeView
             appointments={data.appointments}
@@ -384,7 +444,7 @@ export default function LawyerCalendarApp() {
           />
         )}
 
-        {activeTab === "cases" && (
+        {activeTab === "cases" && !isReadOnly && data.currentUser && (
           <CasesView
             cases={data.cases}
             appointments={data.appointments}
@@ -394,6 +454,8 @@ export default function LawyerCalendarApp() {
             currentUser={data.currentUser}
             isReadOnly={isReadOnly}
             onRefresh={() => loadBootstrap("dynamic")}
+            onCaseSaved={handleCaseSaved}
+            onCaseDeleted={handleCaseDeleted}
             onAddAppointmentForCase={(c) => openNewAppointment(undefined, c)}
             onSelectAppointment={openEditAppointment}
             onSaveStatusChange={handleSaveStatusChange}
@@ -452,6 +514,7 @@ export default function LawyerCalendarApp() {
           onSuccess={async () => {
             setLoginModalOpen(false);
             await loadBootstrap("full");
+            setActiveTab("dashboard");
           }}
         />
       )}

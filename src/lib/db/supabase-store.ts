@@ -1,7 +1,7 @@
 import { addDays, format, parseISO } from "date-fns";
 import { ConflictError, ValidationError } from "@/lib/db/store";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatCaseNumber } from "@/lib/thai-date";
+import { formatCaseNumber, formatPartiesSummary } from "@/lib/thai-date";
 import type {
   Appointment,
   AppointmentTypeItem,
@@ -9,6 +9,7 @@ import type {
   AuditAction,
   AuditLog,
   CaseCategory,
+  CaseNoteEntry,
   CaseWithRelations,
   Court,
   LegalCase,
@@ -333,7 +334,11 @@ export async function getSupabasePublicBootstrapData(scope: "full" | "dynamic" =
     const courtMap = new Map(courts.map((c) => [c.id, c]));
     const catMap = new Map(case_categories.map((c) => [c.id, c]));
 
-    const activeCases = activeCasesRaw.map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+    const activeCases = activeCasesRaw.map((c) => ({
+      ...enrichCaseRow(c, courtMap, catMap, userMap),
+      client_phone: "",
+      client_contact_name: "",
+    }));
     const caseMap = new Map(activeCases.map((c) => [c.id, c]));
     const appointments = publicApptsRaw.map((a) =>
       enrichAppointmentRow(a, guestViewer, caseMap, courtMap, userMap)
@@ -379,7 +384,11 @@ export async function getSupabasePublicBootstrapData(scope: "full" | "dynamic" =
   const courtMap = new Map(courts.map((c) => [c.id, c]));
   const catMap = new Map(case_categories.map((c) => [c.id, c]));
 
-  const activeCases = activeCasesRaw.map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+  const activeCases = activeCasesRaw.map((c) => ({
+    ...enrichCaseRow(c, courtMap, catMap, userMap),
+    client_phone: "",
+    client_contact_name: "",
+  }));
   const caseMap = new Map(activeCases.map((c) => [c.id, c]));
   const appointments = publicApptsRaw.map((a) =>
     enrichAppointmentRow(a, guestViewer, caseMap, courtMap, userMap)
@@ -402,6 +411,35 @@ export async function getSupabasePublicBootstrapData(scope: "full" | "dynamic" =
   };
 }
 
+async function enrichSingleSupabaseCase(
+  db: DbClient,
+  c: LegalCase
+): Promise<CaseWithRelations> {
+  const [courtRes, catRes, userRes] = await Promise.all([
+    db.from("courts").select("*").eq("id", c.court_id).maybeSingle(),
+    db.from("case_categories").select("*").eq("id", c.category_id).maybeSingle(),
+    db
+      .from("users")
+      .select("id, full_name, email, role, is_active, created_at")
+      .eq("id", c.responsible_user_id)
+      .maybeSingle(),
+  ]);
+  const court = (courtRes.data as Court) || undefined;
+  const category = (catRes.data as CaseCategory) || undefined;
+  const responsible_user = (userRes.data as User) || undefined;
+  return {
+    ...c,
+    court,
+    category,
+    responsible_user,
+    formatted_case_number: formatCaseNumber(
+      category?.abbreviation,
+      c.black_case_number,
+      c.case_year
+    ),
+  };
+}
+
 export async function createSupabaseCase(
   actor: User,
   input: Omit<LegalCase, "id" | "created_by" | "updated_by" | "created_at" | "updated_at" | "deleted_at">
@@ -421,11 +459,47 @@ export async function createSupabaseCase(
     throw new ValidationError("พบข้อมูลคดีซ้ำในระบบแล้ว", { duplicateCase: dup });
   }
 
+  const nowIso = new Date().toISOString();
+  const plaintiffs =
+    input.plaintiffs && input.plaintiffs.length > 0
+      ? input.plaintiffs
+      : input.plaintiff_name
+      ? [{ order: 1, name: input.plaintiff_name }]
+      : [];
+  const defendants =
+    input.defendants && input.defendants.length > 0
+      ? input.defendants
+      : input.defendant_name
+      ? [{ order: 1, name: input.defendant_name }]
+      : [];
+  const initialNotes: CaseNoteEntry[] =
+    input.case_notes && input.case_notes.length > 0
+      ? input.case_notes
+      : input.notes?.trim()
+      ? [
+          {
+            id: crypto.randomUUID(),
+            content: input.notes.trim(),
+            created_by: actor.id,
+            created_by_name: actor.full_name,
+            created_at: nowIso,
+          },
+        ]
+      : [];
+
   const { data: created, error } = await db
     .from("cases")
     .insert({
       ...input,
       black_case_number: input.black_case_number.trim(),
+      plaintiffs,
+      defendants,
+      plaintiff_name: formatPartiesSummary(plaintiffs, input.plaintiff_name),
+      defendant_name: formatPartiesSummary(defendants, input.defendant_name),
+      case_notes: initialNotes,
+      court_level: input.court_level ?? "first_instance",
+      client_phone: input.client_phone ?? "",
+      client_contact_name: input.client_contact_name ?? "",
       created_by: actor.id,
       updated_by: actor.id,
     })
@@ -434,8 +508,11 @@ export async function createSupabaseCase(
 
   if (error || !created) throw new ValidationError(error?.message || "สร้างคดีไม่สำเร็จ");
 
-  await appendAudit(actor.id, "case", created.id, "CREATE", null, created);
-  return created;
+  const [enriched] = await Promise.all([
+    enrichSingleSupabaseCase(db, created as LegalCase),
+    appendAudit(actor.id, "case", created.id, "CREATE", null, created, db),
+  ]);
+  return enriched;
 }
 
 export async function updateSupabaseCase(
@@ -457,16 +534,72 @@ export async function updateSupabaseCase(
   }
 
   const { expected_updated_at: _exp, ...patch } = input;
+  const nextPlaintiffs =
+    patch.plaintiffs !== undefined ? patch.plaintiffs : existing.plaintiffs;
+  const nextDefendants =
+    patch.defendants !== undefined ? patch.defendants : existing.defendants;
+
   const { data: updated, error } = await db
     .from("cases")
-    .update({ ...patch, updated_by: actor.id })
+    .update({
+      ...patch,
+      ...(nextPlaintiffs && nextPlaintiffs.length > 0
+        ? { plaintiff_name: formatPartiesSummary(nextPlaintiffs) }
+        : {}),
+      ...(nextDefendants && nextDefendants.length > 0
+        ? { defendant_name: formatPartiesSummary(nextDefendants) }
+        : {}),
+      updated_by: actor.id,
+    })
     .eq("id", caseId)
     .select("*")
     .single();
 
   if (error || !updated) throw new ValidationError(error?.message || "อัปเดตคดีไม่สำเร็จ");
-  await appendAudit(actor.id, "case", caseId, "UPDATE", existing, updated);
-  return updated;
+  const [enriched] = await Promise.all([
+    enrichSingleSupabaseCase(db, updated as LegalCase),
+    appendAudit(actor.id, "case", caseId, "UPDATE", existing, updated, db),
+  ]);
+  return enriched;
+}
+
+export async function addSupabaseCaseNote(
+  actor: User,
+  caseId: string,
+  content: string
+) {
+  const db = await getDb();
+  const { data: existing } = await db
+    .from("cases")
+    .select("*")
+    .eq("id", caseId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!existing) throw new ValidationError("ไม่พบข้อมูลคดี");
+
+  const entry: CaseNoteEntry = {
+    id: crypto.randomUUID(),
+    content: content.trim(),
+    created_by: actor.id,
+    created_by_name: actor.full_name,
+    created_at: new Date().toISOString(),
+  };
+
+  const nextNotes = [entry, ...((existing.case_notes as CaseNoteEntry[]) || [])];
+  const { data: updated, error } = await db
+    .from("cases")
+    .update({ case_notes: nextNotes, updated_by: actor.id })
+    .eq("id", caseId)
+    .select("*")
+    .single();
+
+  if (error || !updated) throw new ValidationError(error?.message || "เพิ่มหมายเหตุไม่สำเร็จ");
+  const [enriched] = await Promise.all([
+    enrichSingleSupabaseCase(db, updated as LegalCase),
+    appendAudit(actor.id, "case", caseId, "UPDATE", existing, updated, db),
+  ]);
+  return enriched;
 }
 
 export async function softDeleteSupabaseCase(actor: User, caseId: string) {

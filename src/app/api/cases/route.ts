@@ -25,12 +25,18 @@ export async function POST(req: NextRequest) {
       category_id: d.category_id,
       black_case_number: d.black_case_number,
       case_year: d.case_year,
-      plaintiff_name: d.plaintiff_name,
-      defendant_name: d.defendant_name,
+      plaintiff_name: d.plaintiff_name ?? "",
+      defendant_name: d.defendant_name ?? "",
+      plaintiffs: d.plaintiffs,
+      defendants: d.defendants,
       our_role: d.our_role,
+      court_level: d.court_level,
       responsible_user_id: d.responsible_user_id,
       status: d.status,
       notes: d.notes ?? "",
+      case_notes: d.case_notes,
+      client_phone: d.client_phone ?? "",
+      client_contact_name: d.client_contact_name ?? "",
     };
 
     const created = isSupabaseConfigured()

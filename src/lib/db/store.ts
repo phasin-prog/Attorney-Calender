@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { addDays, format, parseISO } from "date-fns";
 import { createInitialSeed } from "@/lib/db/seed";
-import { formatCaseNumber } from "@/lib/thai-date";
+import { formatCaseNumber, formatPartiesSummary } from "@/lib/thai-date";
 import type {
   Appointment,
   AppointmentTypeItem,
@@ -12,6 +12,7 @@ import type {
   AuditAction,
   AuditLog,
   CaseCategory,
+  CaseNoteEntry,
   CaseWithRelations,
   Court,
   DatabaseState,
@@ -231,7 +232,14 @@ export function getBootstrapData(viewer: User) {
   const state = readDb();
   const activeCases = state.cases
     .filter((c) => !c.deleted_at)
-    .map((c) => enrichCase(state, c));
+    .map((c) => {
+      const enriched = enrichCase(state, c);
+      return {
+        ...enriched,
+        client_phone: "",
+        client_contact_name: "",
+      };
+    });
   const deletedCases = state.cases
     .filter((c) => !!c.deleted_at)
     .map((c) => enrichCase(state, c));
@@ -280,7 +288,14 @@ export function getPublicBootstrapData() {
   }));
   const activeCases = state.cases
     .filter((c) => !c.deleted_at)
-    .map((c) => enrichCase(state, c));
+    .map((c) => {
+      const enriched = enrichCase(state, c);
+      return {
+        ...enriched,
+        client_phone: "",
+        client_contact_name: "",
+      };
+    });
   const publicAppointments = state.appointments
     .filter((a) => !a.deleted_at && a.visibility === "shared")
     .map((a) => enrichAppointment(state, a, guestViewer));
@@ -325,10 +340,47 @@ export function createCaseRecord(
   }
 
   const nowIso = new Date().toISOString();
+  const plaintiffs =
+    input.plaintiffs && input.plaintiffs.length > 0
+      ? input.plaintiffs
+      : input.plaintiff_name
+      ? [{ order: 1, name: input.plaintiff_name }]
+      : [];
+  const defendants =
+    input.defendants && input.defendants.length > 0
+      ? input.defendants
+      : input.defendant_name
+      ? [{ order: 1, name: input.defendant_name }]
+      : [];
+  const plaintiffSummary = formatPartiesSummary(plaintiffs, input.plaintiff_name);
+  const defendantSummary = formatPartiesSummary(defendants, input.defendant_name);
+  const initialNotes: CaseNoteEntry[] =
+    input.case_notes && input.case_notes.length > 0
+      ? input.case_notes
+      : input.notes?.trim()
+      ? [
+          {
+            id: crypto.randomUUID(),
+            content: input.notes.trim(),
+            created_by: actor.id,
+            created_by_name: actor.full_name,
+            created_at: nowIso,
+          },
+        ]
+      : [];
+
   const record: LegalCase = {
     ...input,
     id: crypto.randomUUID(),
     black_case_number: input.black_case_number.trim(),
+    plaintiffs,
+    defendants,
+    plaintiff_name: plaintiffSummary,
+    defendant_name: defendantSummary,
+    case_notes: initialNotes,
+    court_level: input.court_level ?? "first_instance",
+    client_phone: input.client_phone ?? "",
+    client_contact_name: input.client_contact_name ?? "",
     created_by: actor.id,
     updated_by: actor.id,
     created_at: nowIso,
@@ -384,10 +436,63 @@ export function updateCaseRecord(
   }
 
   const { expected_updated_at: _expected, ...casePatch } = input;
+  const nextPlaintiffs =
+    casePatch.plaintiffs !== undefined ? casePatch.plaintiffs : existing.plaintiffs;
+  const nextDefendants =
+    casePatch.defendants !== undefined ? casePatch.defendants : existing.defendants;
+
   const updated: LegalCase = {
     ...existing,
     ...casePatch,
     black_case_number: nextBlack,
+    plaintiff_name:
+      nextPlaintiffs && nextPlaintiffs.length > 0
+        ? formatPartiesSummary(nextPlaintiffs)
+        : casePatch.plaintiff_name ?? existing.plaintiff_name,
+    defendant_name:
+      nextDefendants && nextDefendants.length > 0
+        ? formatPartiesSummary(nextDefendants)
+        : casePatch.defendant_name ?? existing.defendant_name,
+    updated_by: actor.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  state.cases[idx] = updated;
+  appendAuditLog(
+    state,
+    actor.id,
+    "case",
+    caseId,
+    "UPDATE",
+    existing as unknown as Record<string, unknown>,
+    updated as unknown as Record<string, unknown>
+  );
+  writeDb(state);
+  return enrichCase(state, updated);
+}
+
+export function addCaseNoteRecord(
+  actor: User,
+  caseId: string,
+  content: string
+): CaseWithRelations {
+  const state = readDb();
+  const idx = state.cases.findIndex((c) => c.id === caseId && !c.deleted_at);
+  if (idx === -1) throw new ValidationError("ไม่พบข้อมูลคดี");
+
+  const existing = state.cases[idx];
+  const entry: CaseNoteEntry = {
+    id: crypto.randomUUID(),
+    content: content.trim(),
+    created_by: actor.id,
+    created_by_name: actor.full_name,
+    created_at: new Date().toISOString(),
+  };
+
+  const nextNotes = [entry, ...(existing.case_notes || [])];
+  const updated: LegalCase = {
+    ...existing,
+    case_notes: nextNotes,
     updated_by: actor.id,
     updated_at: new Date().toISOString(),
   };

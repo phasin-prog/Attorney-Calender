@@ -44,6 +44,19 @@ export const appointmentInputSchema = z.object({
   force_duplicate: z.boolean().optional(),
 });
 
+export const casePartySchema = z.object({
+  order: z.coerce.number().int().min(1),
+  name: z.string().trim().min(1, "กรุณากรอกชื่อคู่ความ"),
+});
+
+export const caseNoteEntrySchema = z.object({
+  id: z.string().min(1),
+  content: z.string().trim().min(1, "กรุณากรอกข้อความหมายเหตุ"),
+  created_by: z.string(),
+  created_by_name: z.string(),
+  created_at: z.string(),
+});
+
 export const caseInputSchema = z.object({
   court_id: z.string().uuid("กรุณาเลือกศาล"),
   category_id: z.string().uuid("กรุณาเลือกอักษรย่อประเภทคดี"),
@@ -53,12 +66,18 @@ export const caseInputSchema = z.object({
     .int()
     .min(2500, "กรุณากรอกปี พ.ศ. ให้ถูกต้อง")
     .max(2700, "กรุณากรอกปี พ.ศ. ให้ถูกต้อง"),
-  plaintiff_name: z.string().trim().min(1, "กรุณากรอกชื่อโจทก์"),
-  defendant_name: z.string().trim().min(1, "กรุณากรอกชื่อจำเลย"),
+  plaintiff_name: z.string().trim().optional().default(""),
+  defendant_name: z.string().trim().optional().default(""),
+  plaintiffs: z.array(casePartySchema).optional(),
+  defendants: z.array(casePartySchema).optional(),
   our_role: z.enum(["plaintiff_lawyer", "defendant_lawyer", "other"]).optional().default("plaintiff_lawyer"),
+  court_level: z.enum(["first_instance", "appeal", "supreme"]).optional().default("first_instance"),
   responsible_user_id: z.string().uuid("กรุณาเลือกผู้รับผิดชอบคดี"),
   status: z.enum(["active", "pending", "closed"]).default("active"),
   notes: z.string().trim().optional().default(""),
+  case_notes: z.array(caseNoteEntrySchema).optional(),
+  client_phone: z.string().trim().optional().default(""),
+  client_contact_name: z.string().trim().optional().default(""),
   expected_updated_at: z.string().optional(),
 });
 

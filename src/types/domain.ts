@@ -1,5 +1,6 @@
 export type UserRole = "admin" | "staff";
 export type CaseStatus = "active" | "pending" | "closed";
+export type CourtLevel = "first_instance" | "appeal" | "supreme";
 export type OurRole = "plaintiff_lawyer" | "defendant_lawyer" | "other";
 export type AppointmentCategory = "court" | "office" | "personal";
 export type AppointmentVisibility = "shared" | "private";
@@ -47,6 +48,19 @@ export interface PublicHoliday {
   created_at: string;
 }
 
+export interface CaseParty {
+  order: number;
+  name: string;
+}
+
+export interface CaseNoteEntry {
+  id: string;
+  content: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+}
+
 export interface LegalCase {
   id: string;
   court_id: string;
@@ -55,10 +69,16 @@ export interface LegalCase {
   case_year: number;
   plaintiff_name: string;
   defendant_name: string;
+  plaintiffs?: CaseParty[];
+  defendants?: CaseParty[];
   our_role?: OurRole;
+  court_level?: CourtLevel;
   responsible_user_id: string;
   status: CaseStatus;
   notes: string;
+  case_notes?: CaseNoteEntry[];
+  client_phone?: string;
+  client_contact_name?: string;
   created_by: string;
   updated_by: string;
   created_at: string;

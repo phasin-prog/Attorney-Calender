@@ -1,5 +1,5 @@
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
-import type { OurRole, PublicHoliday } from "@/types/domain";
+import type { CaseParty, CourtLevel, OurRole, PublicHoliday } from "@/types/domain";
 
 const THAI_DAYS = [
   "วันอาทิตย์",
@@ -214,6 +214,31 @@ export function formatTime24(startTime: string | null | undefined, endTime?: str
     return `${s} - ${endTime.slice(0, 5)} น.`;
   }
   return `${s} น.`;
+}
+
+export function getCourtLevelLabel(level?: CourtLevel | null): string {
+  switch (level) {
+    case "appeal":
+      return "ชั้นอุทธรณ์";
+    case "supreme":
+      return "ชั้นฎีกา";
+    case "first_instance":
+    default:
+      return "ศาลชั้นต้น";
+  }
+}
+
+export function formatPartiesSummary(
+  parties?: CaseParty[] | null,
+  fallbackName?: string
+): string {
+  if (parties && parties.length > 0) {
+    return [...parties]
+      .sort((a, b) => a.order - b.order)
+      .map((p) => `${p.order}. ${p.name}`)
+      .join(", ");
+  }
+  return fallbackName?.trim() || "-";
 }
 
 export { THAI_MONTHS, THAI_SHORT_MONTHS };

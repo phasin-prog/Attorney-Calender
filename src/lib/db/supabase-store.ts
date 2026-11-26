@@ -17,19 +17,21 @@ import type {
   User,
 } from "@/types/domain";
 
+type DbClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
 async function getDb() {
   return await createSupabaseServerClient();
 }
 
 function enrichCaseRow(
   c: LegalCase,
-  courts: Court[],
-  categories: CaseCategory[],
-  users: User[]
+  courtMap: Map<string, Court>,
+  categoryMap: Map<string, CaseCategory>,
+  userMap: Map<string, User>
 ): CaseWithRelations {
-  const court = courts.find((ct) => ct.id === c.court_id);
-  const category = categories.find((cat) => cat.id === c.category_id);
-  const responsible_user = users.find((u) => u.id === c.responsible_user_id);
+  const court = courtMap.get(c.court_id);
+  const category = categoryMap.get(c.category_id);
+  const responsible_user = userMap.get(c.responsible_user_id);
   return {
     ...c,
     court,
@@ -46,13 +48,13 @@ function enrichCaseRow(
 function enrichAppointmentRow(
   a: Appointment,
   viewer: User,
-  cases: CaseWithRelations[],
-  courts: Court[],
-  users: User[]
+  caseMap: Map<string, CaseWithRelations>,
+  courtMap: Map<string, Court>,
+  userMap: Map<string, User>
 ): AppointmentWithRelations {
   const isOwnerOrAdmin = a.responsible_user_id === viewer.id || viewer.role === "admin";
   const shouldMask = a.visibility === "private" && !isOwnerOrAdmin;
-  const responsible_user = users.find((u) => u.id === a.responsible_user_id) ?? null;
+  const responsible_user = userMap.get(a.responsible_user_id) ?? null;
 
   const normalizeTime = (t: string | null) => (t ? t.slice(0, 5) : null);
 
@@ -63,6 +65,10 @@ function enrichAppointmentRow(
       end_time: normalizeTime(a.end_time),
       title: "ไม่ว่าง (นัดหมายส่วนตัว)",
       location: "ไม่ระบุ",
+      courtroom: "",
+      sequence_note: "",
+      plaintiff_name: "",
+      defendant_name: "",
       description: "",
       case_id: null,
       case: null,
@@ -72,8 +78,8 @@ function enrichAppointmentRow(
     };
   }
 
-  const linkedCase = a.case_id ? cases.find((c) => c.id === a.case_id) ?? null : null;
-  const court = a.court_id ? courts.find((ct) => ct.id === a.court_id) ?? null : null;
+  const linkedCase = a.case_id ? caseMap.get(a.case_id) ?? null : null;
+  const court = a.court_id ? courtMap.get(a.court_id) ?? null : null;
 
   return {
     ...a,
@@ -92,9 +98,10 @@ async function appendAudit(
   entityId: string,
   action: AuditAction,
   oldData: Record<string, unknown> | null,
-  newData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null,
+  dbClient?: DbClient
 ) {
-  const db = await getDb();
+  const db = dbClient || (await getDb());
   await db.from("audit_logs").insert({
     user_id: actorId,
     entity_type: entityType,
@@ -105,8 +112,8 @@ async function appendAudit(
   });
 }
 
-async function syncReminders(appt: Appointment) {
-  const db = await getDb();
+async function syncReminders(appt: Appointment, dbClient?: DbClient) {
+  const db = dbClient || (await getDb());
   await db.from("appointment_reminders").delete().eq("appointment_id", appt.id);
   if (appt.deleted_at || appt.status === "cancelled") return;
 
@@ -137,9 +144,10 @@ async function notifyOffice(
   actorId: string,
   appt: Appointment,
   title: string,
-  message: string
+  message: string,
+  dbClient?: DbClient
 ) {
-  const db = await getDb();
+  const db = dbClient || (await getDb());
   const { data: users } = await db.from("users").select("id, role, is_active");
   if (!users) return;
 
@@ -162,8 +170,54 @@ async function notifyOffice(
   }
 }
 
-export async function getSupabaseBootstrapData(viewer: User) {
+export async function getSupabaseBootstrapData(
+  viewer: User,
+  scope: "full" | "dynamic" = "full"
+) {
   const db = await getDb();
+
+  if (scope === "dynamic") {
+    const [usersRes, courtsRes, catsRes, casesRes, apptsRes, notifRes] = await Promise.all([
+      db.from("users").select("id, full_name, email, role, is_active, created_at").order("created_at", { ascending: true }),
+      db.from("courts").select("*").order("name", { ascending: true }),
+      db.from("case_categories").select("*").order("abbreviation", { ascending: true }),
+      db.from("cases").select("*").order("created_at", { ascending: false }),
+      db.from("appointments").select("*").order("appointment_date", { ascending: true }),
+      db
+        .from("notifications")
+        .select("*")
+        .eq("user_id", viewer.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    const users = (usersRes.data || []) as User[];
+    const courts = (courtsRes.data || []) as Court[];
+    const case_categories = (catsRes.data || []) as CaseCategory[];
+    const allCases = (casesRes.data || []) as LegalCase[];
+    const allAppts = (apptsRes.data || []) as Appointment[];
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const courtMap = new Map(courts.map((c) => [c.id, c]));
+    const catMap = new Map(case_categories.map((c) => [c.id, c]));
+
+    const activeCases = allCases
+      .filter((c) => !c.deleted_at)
+      .map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+    const caseMap = new Map(activeCases.map((c) => [c.id, c]));
+
+    const appointments = allAppts
+      .filter((a) => !a.deleted_at)
+      .map((a) => enrichAppointmentRow(a, viewer, caseMap, courtMap, userMap));
+
+    return {
+      currentUser: viewer,
+      isReadOnly: false,
+      cases: activeCases,
+      appointments,
+      notifications: (notifRes.data || []) as Notification[],
+    };
+  }
 
   const [
     usersRes,
@@ -200,27 +254,33 @@ export async function getSupabaseBootstrapData(viewer: User) {
   const allCases = (casesRes.data || []) as LegalCase[];
   const allAppts = (apptsRes.data || []) as Appointment[];
 
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const courtMap = new Map(courts.map((c) => [c.id, c]));
+  const catMap = new Map(case_categories.map((c) => [c.id, c]));
+
   const activeCases = allCases
     .filter((c) => !c.deleted_at)
-    .map((c) => enrichCaseRow(c, courts, case_categories, users));
+    .map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
   const deletedCases = allCases
     .filter((c) => !!c.deleted_at)
-    .map((c) => enrichCaseRow(c, courts, case_categories, users));
+    .map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+  const caseMap = new Map(activeCases.map((c) => [c.id, c]));
 
   const appointments = allAppts
     .filter((a) => !a.deleted_at)
-    .map((a) => enrichAppointmentRow(a, viewer, activeCases, courts, users));
+    .map((a) => enrichAppointmentRow(a, viewer, caseMap, courtMap, userMap));
   const deletedAppointments = allAppts
     .filter((a) => !!a.deleted_at)
-    .map((a) => enrichAppointmentRow(a, viewer, activeCases, courts, users));
+    .map((a) => enrichAppointmentRow(a, viewer, caseMap, courtMap, userMap));
 
   const audit_logs = ((auditRes.data || []) as AuditLog[]).map((l) => ({
     ...l,
-    user_name: users.find((u) => u.id === l.user_id)?.full_name || l.user_id,
+    user_name: userMap.get(l.user_id)?.full_name || l.user_id,
   }));
 
   return {
     currentUser: viewer,
+    isReadOnly: false,
     users,
     courts,
     case_categories,
@@ -232,6 +292,113 @@ export async function getSupabaseBootstrapData(viewer: User) {
     deletedAppointments,
     notifications: (notifRes.data || []) as Notification[],
     audit_logs,
+  };
+}
+
+export async function getSupabasePublicBootstrapData(scope: "full" | "dynamic" = "full") {
+  const db = createSupabaseAdminClient() || (await getDb());
+  const guestViewer: User = {
+    id: "guest",
+    full_name: "ผู้เยี่ยมชม (ดูอย่างเดียว)",
+    email: "",
+    role: "staff",
+    is_active: true,
+    created_at: "",
+  };
+
+  if (scope === "dynamic") {
+    const [usersRes, courtsRes, catsRes, casesRes, apptsRes] = await Promise.all([
+      db.from("users").select("id, full_name, role, is_active, created_at").order("created_at", { ascending: true }),
+      db.from("courts").select("*").order("name", { ascending: true }),
+      db.from("case_categories").select("*").order("abbreviation", { ascending: true }),
+      db.from("cases").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+      db
+        .from("appointments")
+        .select("*")
+        .is("deleted_at", null)
+        .eq("visibility", "shared")
+        .order("appointment_date", { ascending: true }),
+    ]);
+
+    const users = ((usersRes.data || []) as Omit<User, "email">[]).map((u) => ({
+      ...u,
+      email: "",
+    }));
+    const courts = (courtsRes.data || []) as Court[];
+    const case_categories = (catsRes.data || []) as CaseCategory[];
+    const activeCasesRaw = (casesRes.data || []) as LegalCase[];
+    const publicApptsRaw = (apptsRes.data || []) as Appointment[];
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const courtMap = new Map(courts.map((c) => [c.id, c]));
+    const catMap = new Map(case_categories.map((c) => [c.id, c]));
+
+    const activeCases = activeCasesRaw.map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+    const caseMap = new Map(activeCases.map((c) => [c.id, c]));
+    const appointments = publicApptsRaw.map((a) =>
+      enrichAppointmentRow(a, guestViewer, caseMap, courtMap, userMap)
+    );
+
+    return {
+      currentUser: null,
+      isReadOnly: true,
+      cases: activeCases,
+      appointments,
+      notifications: [],
+    };
+  }
+
+  const [usersRes, courtsRes, catsRes, typesRes, holidaysRes, casesRes, apptsRes] =
+    await Promise.all([
+      db.from("users").select("id, full_name, role, is_active, created_at").order("created_at", { ascending: true }),
+      db.from("courts").select("*").order("name", { ascending: true }),
+      db.from("case_categories").select("*").order("abbreviation", { ascending: true }),
+      db.from("appointment_types").select("*").order("created_at", { ascending: true }),
+      db.from("public_holidays").select("*").order("holiday_date", { ascending: true }),
+      db.from("cases").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+      db
+        .from("appointments")
+        .select("*")
+        .is("deleted_at", null)
+        .eq("visibility", "shared")
+        .order("appointment_date", { ascending: true }),
+    ]);
+
+  const users = ((usersRes.data || []) as Omit<User, "email">[]).map((u) => ({
+    ...u,
+    email: "",
+  }));
+  const courts = (courtsRes.data || []) as Court[];
+  const case_categories = (catsRes.data || []) as CaseCategory[];
+  const appointment_types = (typesRes.data || []) as AppointmentTypeItem[];
+  const public_holidays = (holidaysRes.data || []) as PublicHoliday[];
+  const activeCasesRaw = (casesRes.data || []) as LegalCase[];
+  const publicApptsRaw = (apptsRes.data || []) as Appointment[];
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  const courtMap = new Map(courts.map((c) => [c.id, c]));
+  const catMap = new Map(case_categories.map((c) => [c.id, c]));
+
+  const activeCases = activeCasesRaw.map((c) => enrichCaseRow(c, courtMap, catMap, userMap));
+  const caseMap = new Map(activeCases.map((c) => [c.id, c]));
+  const appointments = publicApptsRaw.map((a) =>
+    enrichAppointmentRow(a, guestViewer, caseMap, courtMap, userMap)
+  );
+
+  return {
+    currentUser: null,
+    isReadOnly: true,
+    users,
+    courts,
+    case_categories,
+    appointment_types,
+    public_holidays,
+    cases: activeCases,
+    deletedCases: [],
+    appointments,
+    deletedAppointments: [],
+    notifications: [],
+    audit_logs: [],
   };
 }
 
@@ -338,6 +505,52 @@ export async function restoreSupabaseCase(actor: User, caseId: string) {
   return restored;
 }
 
+async function enrichSingleSupabaseAppointment(
+  db: DbClient,
+  appt: Appointment,
+  viewer: User
+): Promise<AppointmentWithRelations> {
+  const [caseRes, courtRes, userRes] = await Promise.all([
+    appt.case_id
+      ? db.from("cases").select("*").eq("id", appt.case_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    appt.court_id
+      ? db.from("courts").select("*").eq("id", appt.court_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    db.from("users").select("id, full_name, email, role, is_active, created_at").eq("id", appt.responsible_user_id).maybeSingle(),
+  ]);
+
+  let linkedCase: CaseWithRelations | null = null;
+  if (caseRes.data) {
+    const c = caseRes.data as LegalCase;
+    const [cCourtRes, cCatRes] = await Promise.all([
+      db.from("courts").select("*").eq("id", c.court_id).maybeSingle(),
+      db.from("case_categories").select("*").eq("id", c.category_id).maybeSingle(),
+    ]);
+    linkedCase = {
+      ...c,
+      court: (cCourtRes.data as Court) || undefined,
+      category: (cCatRes.data as CaseCategory) || undefined,
+      formatted_case_number: formatCaseNumber(
+        (cCatRes.data as CaseCategory | null)?.abbreviation,
+        c.black_case_number,
+        c.case_year
+      ),
+    };
+  }
+
+  const normalizeTime = (t: string | null) => (t ? t.slice(0, 5) : null);
+  return {
+    ...appt,
+    start_time: normalizeTime(appt.start_time),
+    end_time: normalizeTime(appt.end_time),
+    case: linkedCase,
+    court: (courtRes.data as Court) || null,
+    responsible_user: (userRes.data as User) || (appt.responsible_user_id === viewer.id ? viewer : null),
+    is_masked_private: false,
+  };
+}
+
 export async function createSupabaseAppointment(
   actor: User,
   input: Omit<
@@ -346,29 +559,6 @@ export async function createSupabaseAppointment(
   > & { force_duplicate?: boolean }
 ) {
   const db = await getDb();
-
-  if (!input.force_duplicate) {
-    const { data: sameDay } = await db
-      .from("appointments")
-      .select("*")
-      .is("deleted_at", null)
-      .neq("status", "cancelled")
-      .eq("appointment_date", input.appointment_date);
-
-    const dup = (sameDay || []).find(
-      (a) =>
-        (a.start_time &&
-          input.start_time &&
-          a.start_time.slice(0, 5) === input.start_time &&
-          a.responsible_user_id === input.responsible_user_id) ||
-        (a.title.trim() === input.title.trim() && a.case_id === (input.case_id ?? null))
-    );
-    if (dup) {
-      throw new ValidationError("พบนัดหมายที่อาจซ้ำกันในวันและเวลาดังกล่าว", {
-        duplicateAppointment: dup,
-      });
-    }
-  }
 
   const { force_duplicate: _fd, ...clean } = input;
   const { data: created, error } = await db
@@ -384,15 +574,20 @@ export async function createSupabaseAppointment(
 
   if (error || !created) throw new ValidationError(error?.message || "สร้างนัดหมายไม่สำเร็จ");
 
-  await syncReminders(created as Appointment);
-  await notifyOffice(
-    actor.id,
-    created as Appointment,
-    "มีนัดหมายใหม่",
-    `${actor.full_name} เพิ่มนัด "${created.title}" วันที่ ${created.appointment_date}`
-  );
-  await appendAudit(actor.id, "appointment", created.id, "CREATE", null, created);
-  return created;
+  const [enriched] = await Promise.all([
+    enrichSingleSupabaseAppointment(db, created as Appointment, actor),
+    syncReminders(created as Appointment, db),
+    notifyOffice(
+      actor.id,
+      created as Appointment,
+      "มีนัดหมายใหม่",
+      `${actor.full_name} เพิ่มนัด "${created.title}" วันที่ ${created.appointment_date}`,
+      db
+    ),
+    appendAudit(actor.id, "appointment", created.id, "CREATE", null, created, db),
+  ]);
+
+  return enriched;
 }
 
 export async function updateSupabaseAppointment(
@@ -425,16 +620,21 @@ export async function updateSupabaseAppointment(
 
   if (error || !updated) throw new ValidationError(error?.message || "แก้ไขนัดหมายไม่สำเร็จ");
 
-  await syncReminders(updated as Appointment);
   const isCancelled = existing.status !== "cancelled" && updated.status === "cancelled";
-  await notifyOffice(
-    actor.id,
-    updated as Appointment,
-    isCancelled ? "มีการยกเลิกนัดหมาย" : "มีการแก้ไขนัดหมาย",
-    `${actor.full_name} ${isCancelled ? "ยกเลิก" : "แก้ไข"}นัด "${updated.title}"`
-  );
-  await appendAudit(actor.id, "appointment", apptId, "UPDATE", existing, updated);
-  return updated;
+  const [enriched] = await Promise.all([
+    enrichSingleSupabaseAppointment(db, updated as Appointment, actor),
+    syncReminders(updated as Appointment, db),
+    notifyOffice(
+      actor.id,
+      updated as Appointment,
+      isCancelled ? "มีการยกเลิกนัดหมาย" : "มีการแก้ไขนัดหมาย",
+      `${actor.full_name} ${isCancelled ? "ยกเลิก" : "แก้ไข"}นัด "${updated.title}"`,
+      db
+    ),
+    appendAudit(actor.id, "appointment", apptId, "UPDATE", existing, updated, db),
+  ]);
+
+  return enriched;
 }
 
 export async function softDeleteSupabaseAppointment(actor: User, apptId: string) {

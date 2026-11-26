@@ -113,6 +113,11 @@ export async function requireAuthUser(): Promise<
   return { user };
 }
 
+export async function getOptionalAuthUser(): Promise<User | null> {
+  const res = await requireAuthUser();
+  return res.user ?? null;
+}
+
 export function handleApiError(err: unknown) {
   if (err instanceof ConflictError) {
     return NextResponse.json({ error: err.message, code: "CONFLICT" }, { status: 409 });

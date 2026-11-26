@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { Scale, Lock, Mail, User, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Scale, Lock, Mail, User, AlertCircle, CheckCircle2, X } from "lucide-react";
 
-export function LoginView({ onSuccess }: { onSuccess: () => void }) {
+export function LoginView({
+  onSuccess,
+  onClose,
+  asModal = false,
+}: {
+  onSuccess: () => void;
+  onClose?: () => void;
+  asModal?: boolean;
+}) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -59,8 +67,24 @@ export function LoginView({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+    <div
+      className={
+        asModal
+          ? "fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 overflow-y-auto"
+          : "min-h-screen flex items-center justify-center bg-slate-100 p-4"
+      }
+    >
+      <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-lg p-8 relative">
+        {asModal && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-4 top-4 p-2 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
+            aria-label="ปิดหน้าต่างเข้าสู่ระบบ"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-xl bg-[#0f294a] text-white flex items-center justify-center">
             <Scale className="w-6 h-6" />

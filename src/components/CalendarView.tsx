@@ -9,17 +9,22 @@ import { Download, FileSpreadsheet, Printer } from "lucide-react";
 import { exportAppointmentsToExcel, exportAppointmentsToPdf } from "@/lib/export-utils";
 import {
   formatThaiDate,
+  formatTime24,
   getBangkokToday,
   getCategoryLabel,
+  getOurRoleLabel,
   getStatusLabel,
+  THAI_MONTHS,
 } from "@/lib/thai-date";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { ThaiDateInput } from "@/components/ThaiDateInput";
 import type { AppointmentWithRelations, Court, User } from "@/types/domain";
 
 interface CalendarViewProps {
   appointments: AppointmentWithRelations[];
   users: User[];
   courts: Court[];
+  isReadOnly?: boolean;
   onAddAppointment: (defaultDate?: string) => void;
   onSelectAppointment: (appt: AppointmentWithRelations) => void;
 }
@@ -28,6 +33,7 @@ export function CalendarView({
   appointments,
   users,
   courts,
+  isReadOnly = false,
   onAddAppointment,
   onSelectAppointment,
 }: CalendarViewProps) {
@@ -64,17 +70,12 @@ export function CalendarView({
       const start = a.start_time
         ? `${a.appointment_date}T${a.start_time}:00`
         : a.appointment_date;
-      const end =
-        a.start_time && a.end_time
-          ? `${a.appointment_date}T${a.end_time}:00`
-          : undefined;
       return {
         id: a.id,
         title: a.case
           ? `[${a.case.formatted_case_number}] ${a.title}`
           : a.title,
         start,
-        end,
         allDay: !a.start_time,
         backgroundColor: a.status === "cancelled" ? "#94a3b8" : colorMap[a.category],
         borderColor: a.status === "cancelled" ? "#94a3b8" : colorMap[a.category],
@@ -254,6 +255,21 @@ export function CalendarView({
           locale="th"
           firstDay={1}
           height="auto"
+          dayMaxEvents={4}
+          slotLabelFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }}
+          eventTimeFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          }}
+          titleFormat={(arg) => {
+            const d = arg.date.marker;
+            return `${THAI_MONTHS[d.getUTCMonth()]} พ.ศ. ${d.getUTCFullYear() + 543}`;
+          }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
@@ -268,7 +284,9 @@ export function CalendarView({
           events={events}
           dateClick={(arg) => {
             setSelectedDayForPrint(arg.dateStr);
-            onAddAppointment(arg.dateStr);
+            if (!isReadOnly) {
+              onAddAppointment(arg.dateStr);
+            }
           }}
           eventClick={(arg) => {
             const appt = arg.event.extendedProps.appointment as AppointmentWithRelations;
@@ -287,11 +305,11 @@ export function CalendarView({
           </div>
           <div className="no-print flex items-center gap-2">
             <label className="text-sm font-semibold text-slate-700">เลือกวัน:</label>
-            <input
-              type="date"
+            <ThaiDateInput
               value={selectedDayForPrint}
-              onChange={(e) => setSelectedDayForPrint(e.target.value)}
-              className="input-legal px-3 border border-slate-300"
+              onChange={setSelectedDayForPrint}
+              showDayPreview={false}
+              showTodayButton={false}
             />
           </div>
         </div>
@@ -303,41 +321,69 @@ export function CalendarView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-300 bg-slate-50">
-                  <th className="py-2.5 px-3 font-semibold">เวลา</th>
-                  <th className="py-2.5 px-3 font-semibold">ประเภท</th>
-                  <th className="py-2.5 px-3 font-semibold">รายการนัดหมาย</th>
-                  <th className="py-2.5 px-3 font-semibold">เลขคดีดำ</th>
-                  <th className="py-2.5 px-3 font-semibold">สถานที่</th>
+                  <th className="py-2.5 px-3 font-semibold">ศาล / ห้องพิจารณาคดี</th>
+                  <th className="py-2.5 px-3 font-semibold">เลขคดี</th>
+                  <th className="py-2.5 px-3 font-semibold">โจทก์ - จำเลย / ความเกี่ยวข้อง</th>
+                  <th className="py-2.5 px-3 font-semibold">นัดเกี่ยวกับอะไร</th>
+                  <th className="py-2.5 px-3 font-semibold">เวลา (24 ชม.)</th>
                   <th className="py-2.5 px-3 font-semibold">ผู้รับผิดชอบ</th>
                   <th className="py-2.5 px-3 font-semibold">สถานะ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {dailyList.map((a) => (
-                  <tr
-                    key={a.id}
-                    onClick={() => onSelectAppointment(a)}
-                    className="hover:bg-slate-50 cursor-pointer"
-                  >
-                    <td className="py-2.5 px-3 font-semibold">
-                      {a.start_time ? `${a.start_time} น.` : "ไม่ระบุ"}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {getCategoryLabel(a.category)} ({a.appointment_type})
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold">{a.title}</td>
-                    <td className="py-2.5 px-3">
-                      {a.case?.formatted_case_number || "-"}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {a.location || a.court?.name || "-"}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {a.responsible_user?.full_name || "-"}
-                    </td>
-                    <td className="py-2.5 px-3">{getStatusLabel(a.status)}</td>
-                  </tr>
-                ))}
+                {dailyList.map((a) => {
+                  const courtName = a.court?.name || a.case?.court?.name || a.location || "-";
+                  const roleLabel = getOurRoleLabel(a.our_role || a.case?.our_role);
+                  const plaintiff = a.plaintiff_name || a.case?.plaintiff_name || "";
+                  const defendant = a.defendant_name || a.case?.defendant_name || "";
+                  return (
+                    <tr
+                      key={a.id}
+                      onClick={() => onSelectAppointment(a)}
+                      className="hover:bg-slate-50 cursor-pointer"
+                    >
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold">{courtName}</div>
+                        {a.courtroom && (
+                          <div className="text-xs font-bold text-amber-800">{a.courtroom}</div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-[#0f294a]">
+                        {a.case?.formatted_case_number || "-"}
+                      </td>
+                      <td className="py-2.5 px-3 text-sm">
+                        {(plaintiff || defendant) && (
+                          <div>
+                            {plaintiff || "-"} / {defendant || "-"}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {roleLabel && (
+                            <span className="text-xs font-semibold text-sky-800">{roleLabel}</span>
+                          )}
+                          {a.sequence_note && (
+                            <span className="text-xs text-rose-700 font-semibold">
+                              • {a.sequence_note}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold">{a.title}</div>
+                        <div className="text-xs text-slate-500">
+                          {getCategoryLabel(a.category)} ({a.appointment_type})
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                        {formatTime24(a.start_time)}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {a.responsible_user?.full_name || "-"}
+                      </td>
+                      <td className="py-2.5 px-3">{getStatusLabel(a.status)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

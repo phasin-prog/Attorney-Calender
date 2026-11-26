@@ -1,5 +1,6 @@
 export type UserRole = "admin" | "staff";
 export type CaseStatus = "active" | "pending" | "closed";
+export type OurRole = "plaintiff_lawyer" | "defendant_lawyer" | "other";
 export type AppointmentCategory = "court" | "office" | "personal";
 export type AppointmentVisibility = "shared" | "private";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled";
@@ -54,6 +55,7 @@ export interface LegalCase {
   case_year: number;
   plaintiff_name: string;
   defendant_name: string;
+  our_role?: OurRole;
   responsible_user_id: string;
   status: CaseStatus;
   notes: string;
@@ -82,6 +84,11 @@ export interface Appointment {
   end_time: string | null; // HH:mm
   location: string;
   court_id: string | null;
+  courtroom?: string;
+  our_role?: OurRole | null;
+  sequence_note?: string;
+  plaintiff_name?: string;
+  defendant_name?: string;
   responsible_user_id: string;
   visibility: AppointmentVisibility;
   description: string;

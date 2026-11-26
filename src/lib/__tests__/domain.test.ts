@@ -7,6 +7,7 @@ import {
   createAppointmentRecord,
   createCaseRecord,
   getBootstrapData,
+  getPublicBootstrapData,
   readDb,
   restoreCaseRecord,
   softDeleteCaseRecord,
@@ -16,6 +17,9 @@ import {
 import {
   formatCaseNumber,
   formatThaiDate,
+  formatThaiNumericDate,
+  formatTime24,
+  getOurRoleLabel,
   getWorkWeekDays,
 } from "@/lib/thai-date";
 import type { PublicHoliday } from "@/types/domain";
@@ -147,5 +151,70 @@ describe("Private Visibility & Optimistic Concurrency Control", () => {
         expected_updated_at: "2020-01-01T00:00:00.000Z",
       })
     ).toThrow(ConflictError);
+  });
+
+  it("allows multiple appointments on the same day with courtroom, our_role, and sequence_note", () => {
+    const db = readDb();
+    const owner = db.users[0];
+
+    const appt1 = createAppointmentRecord(owner, {
+      case_id: null,
+      title: "สืบพยานโจทก์",
+      category: "court",
+      appointment_type: "นัดสืบพยาน",
+      appointment_date: "2026-11-27",
+      start_time: "09:00",
+      end_time: "12:00",
+      location: "",
+      court_id: db.courts[0].id,
+      courtroom: "บัลลังก์ 4",
+      our_role: "plaintiff_lawyer",
+      sequence_note: "ลำดับที่ 1",
+      plaintiff_name: "นาย ก",
+      defendant_name: "นาย ข",
+      responsible_user_id: owner.id,
+      visibility: "shared",
+      description: "",
+      status: "scheduled",
+      reminder_1_day: true,
+      reminder_same_day: true,
+    });
+
+    const appt2 = createAppointmentRecord(owner, {
+      case_id: null,
+      title: "นัดพร้อม",
+      category: "court",
+      appointment_type: "นัดพร้อม",
+      appointment_date: "2026-11-27",
+      start_time: "09:00",
+      end_time: null,
+      location: "",
+      court_id: db.courts[0].id,
+      courtroom: "บัลลังก์ 7",
+      our_role: "defendant_lawyer",
+      sequence_note: "ลำดับที่ 3",
+      plaintiff_name: "นาย ค",
+      defendant_name: "นาย ง",
+      responsible_user_id: owner.id,
+      visibility: "private",
+      description: "ความลับ",
+      status: "scheduled",
+      reminder_1_day: true,
+      reminder_same_day: true,
+    });
+
+    expect(appt1.courtroom).toBe("บัลลังก์ 4");
+    expect(appt2.sequence_note).toBe("ลำดับที่ 3");
+    expect(formatThaiNumericDate("2026-11-27")).toBe("27/11/2569");
+    expect(formatTime24("09:00", "12:00")).toBe("09:00 - 12:00 น.");
+    expect(getOurRoleLabel("plaintiff_lawyer")).toBe("ทนายโจทก์");
+
+    // Public read-only bootstrap should include shared appt1 and exclude private appt2
+    const publicData = getPublicBootstrapData();
+    expect(publicData.isReadOnly).toBe(true);
+    expect(publicData.currentUser).toBeNull();
+    expect(publicData.appointments.some((a) => a.id === appt1.id)).toBe(true);
+    expect(publicData.appointments.some((a) => a.id === appt2.id)).toBe(false);
+    expect(publicData.users.every((u) => u.email === "")).toBe(true);
   });
 });

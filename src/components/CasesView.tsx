@@ -14,6 +14,7 @@ import {
   formatThaiShortDate,
   getCaseStatusLabel,
   getCategoryLabel,
+  getOurRoleLabel,
   getStatusLabel,
 } from "@/lib/thai-date";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -23,6 +24,7 @@ import type {
   CaseStatus,
   CaseWithRelations,
   Court,
+  OurRole,
   User,
 } from "@/types/domain";
 
@@ -32,7 +34,8 @@ interface CasesViewProps {
   courts: Court[];
   caseCategories: CaseCategory[];
   users: User[];
-  currentUser: User;
+  currentUser: User | null;
+  isReadOnly?: boolean;
   onRefresh: () => Promise<void>;
   onAddAppointmentForCase: (c: CaseWithRelations) => void;
   onSelectAppointment: (appt: AppointmentWithRelations) => void;
@@ -46,6 +49,7 @@ export function CasesView({
   caseCategories,
   users,
   currentUser,
+  isReadOnly = false,
   onRefresh,
   onAddAppointmentForCase,
   onSelectAppointment,
@@ -99,17 +103,19 @@ export function CasesView({
               ค้นหาคดี ตรวจสอบข้อมูลคู่ความ และเชื่อมโยงประวัติการนัดหมาย
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingCase(null);
-              setShowCaseForm(true);
-            }}
-            className="btn-legal px-5 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-5 h-5" />
-            <span>เพิ่มคดีใหม่</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingCase(null);
+                setShowCaseForm(true);
+              }}
+              className="btn-legal px-5 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              <span>เพิ่มคดีใหม่</span>
+            </button>
+          )}
         </div>
 
         {/* Global Case Search */}
@@ -234,16 +240,18 @@ export function CasesView({
                   </h2>
                   <p className="text-slate-600">{selectedCase.court?.name}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingCase(selectedCase);
-                    setShowCaseForm(true);
-                  }}
-                  className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-semibold cursor-pointer"
-                >
-                  แก้ไขข้อมูลคดี
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCase(selectedCase);
+                      setShowCaseForm(true);
+                    }}
+                    className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-semibold cursor-pointer"
+                  >
+                    แก้ไขข้อมูลคดี
+                  </button>
+                )}
               </div>
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-base">
@@ -253,6 +261,14 @@ export function CasesView({
                 <div>
                   <strong>จำเลย:</strong> {selectedCase.defendant_name}
                 </div>
+                {selectedCase.our_role && (
+                  <div>
+                    <strong>ความเกี่ยวข้องของเรา:</strong>{" "}
+                    <span className="font-bold text-[#0f294a]">
+                      {getOurRoleLabel(selectedCase.our_role)}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <strong>ผู้รับผิดชอบ:</strong>{" "}
                   {selectedCase.responsible_user?.full_name || "-"}
@@ -267,14 +283,16 @@ export function CasesView({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => onAddAppointmentForCase(selectedCase)}
-                className="btn-legal w-full bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <CalendarPlus className="w-5 h-5" />
-                <span>เพิ่มนัดหมายจากคดีนี้</span>
-              </button>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => onAddAppointmentForCase(selectedCase)}
+                  className="btn-legal w-full bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CalendarPlus className="w-5 h-5" />
+                  <span>เพิ่มนัดหมายจากคดีนี้</span>
+                </button>
+              )}
 
               <div className="pt-3 border-t border-slate-200">
                 <h3 className="font-bold text-slate-800 mb-2">
@@ -309,7 +327,7 @@ export function CasesView({
         </div>
       </div>
 
-      {showCaseForm && (
+      {showCaseForm && currentUser && (
         <CaseFormModal
           initialCase={editingCase}
           courts={courts}
@@ -362,6 +380,9 @@ function CaseFormModal({
   const [caseYear, setCaseYear] = useState(initialCase?.case_year || 2569);
   const [plaintiffName, setPlaintiffName] = useState(initialCase?.plaintiff_name || "");
   const [defendantName, setDefendantName] = useState(initialCase?.defendant_name || "");
+  const [ourRole, setOurRole] = useState<OurRole>(
+    initialCase?.our_role || "plaintiff_lawyer"
+  );
   const [responsibleUserId, setResponsibleUserId] = useState(
     initialCase?.responsible_user_id || currentUser.id
   );
@@ -398,6 +419,7 @@ function CaseFormModal({
           case_year: Number(caseYear),
           plaintiff_name: plaintiffName,
           defendant_name: defendantName,
+          our_role: ourRole,
           responsible_user_id: responsibleUserId,
           status,
           notes,
@@ -565,6 +587,19 @@ function CaseFormModal({
                 onChange={(e) => setDefendantName(e.target.value)}
                 className="input-legal w-full px-4 border border-slate-300"
               />
+            </div>
+
+            <div>
+              <label className="block font-semibold mb-1.5">ความเกี่ยวข้องของเรา</label>
+              <select
+                value={ourRole}
+                onChange={(e) => setOurRole(e.target.value as OurRole)}
+                className="input-legal w-full px-3 border border-slate-300 bg-white"
+              >
+                <option value="plaintiff_lawyer">ทนายโจทก์</option>
+                <option value="defendant_lawyer">ทนายจำเลย</option>
+                <option value="other">อื่น ๆ</option>
+              </select>
             </div>
 
             <div>

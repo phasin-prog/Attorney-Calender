@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       case_year: d.case_year,
       plaintiff_name: d.plaintiff_name,
       defendant_name: d.defendant_name,
+      our_role: d.our_role,
       responsible_user_id: d.responsible_user_id,
       status: d.status,
       notes: d.notes ?? "",

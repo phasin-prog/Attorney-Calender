@@ -260,6 +260,47 @@ export function getBootstrapData(viewer: User) {
     deletedAppointments,
     notifications,
     audit_logs: state.audit_logs.slice(0, 200),
+    isReadOnly: false,
+  };
+}
+
+export function getPublicBootstrapData() {
+  const state = readDb();
+  const guestViewer: User = {
+    id: "guest",
+    full_name: "ผู้เยี่ยมชม (ดูอย่างเดียว)",
+    email: "",
+    role: "staff",
+    is_active: true,
+    created_at: "",
+  };
+  const publicUsers = state.users.map((u) => ({
+    ...u,
+    email: "",
+  }));
+  const activeCases = state.cases
+    .filter((c) => !c.deleted_at)
+    .map((c) => enrichCase(state, c));
+  const publicAppointments = state.appointments
+    .filter((a) => !a.deleted_at && a.visibility === "shared")
+    .map((a) => enrichAppointment(state, a, guestViewer));
+
+  return {
+    currentUser: null,
+    isReadOnly: true,
+    users: publicUsers,
+    courts: state.courts,
+    case_categories: state.case_categories,
+    appointment_types: state.appointment_types,
+    public_holidays: state.public_holidays.sort((a, b) =>
+      a.holiday_date.localeCompare(b.holiday_date)
+    ),
+    cases: activeCases,
+    deletedCases: [],
+    appointments: publicAppointments,
+    deletedAppointments: [],
+    notifications: [],
+    audit_logs: [],
   };
 }
 
@@ -440,22 +481,6 @@ export function createAppointmentRecord(
 ): AppointmentWithRelations {
   const state = readDb();
 
-  if (!input.force_duplicate) {
-    const dup = state.appointments.find(
-      (a) =>
-        !a.deleted_at &&
-        a.status !== "cancelled" &&
-        a.appointment_date === input.appointment_date &&
-        ((a.start_time && input.start_time && a.start_time === input.start_time && a.responsible_user_id === input.responsible_user_id) ||
-          (a.title.trim() === input.title.trim() && a.case_id === (input.case_id ?? null)))
-    );
-    if (dup) {
-      throw new ValidationError("พบนัดหมายที่อาจซ้ำกันในวันและเวลาดังกล่าว", {
-        duplicateAppointment: enrichAppointment(state, dup, actor),
-      });
-    }
-  }
-
   const nowIso = new Date().toISOString();
   const record: Appointment = {
     id: crypto.randomUUID(),
@@ -468,6 +493,11 @@ export function createAppointmentRecord(
     end_time: input.end_time ?? null,
     location: input.location ?? "",
     court_id: input.court_id ?? null,
+    courtroom: input.courtroom ?? "",
+    our_role: input.our_role ?? null,
+    sequence_note: input.sequence_note ?? "",
+    plaintiff_name: input.plaintiff_name ?? "",
+    defendant_name: input.defendant_name ?? "",
     responsible_user_id: input.responsible_user_id,
     visibility: input.visibility ?? "shared",
     description: input.description ?? "",

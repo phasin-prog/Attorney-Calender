@@ -7,15 +7,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  MapPin,
+  DoorOpen,
+  Eye,
+  Landmark,
   Plus,
   Scale,
   User as UserIcon,
 } from "lucide-react";
 import {
   formatThaiShortDate,
+  formatTime24,
   getBangkokToday,
   getCategoryLabel,
+  getOurRoleLabel,
   getStatusLabel,
   getWorkWeekDays,
 } from "@/lib/thai-date";
@@ -24,6 +28,7 @@ import type { AppointmentWithRelations, PublicHoliday } from "@/types/domain";
 interface WeeklyHomeViewProps {
   appointments: AppointmentWithRelations[];
   holidays: PublicHoliday[];
+  isReadOnly?: boolean;
   onAddAppointment: (defaultDate?: string) => void;
   onSelectAppointment: (appt: AppointmentWithRelations) => void;
 }
@@ -31,6 +36,7 @@ interface WeeklyHomeViewProps {
 export function WeeklyHomeView({
   appointments,
   holidays,
+  isReadOnly = false,
   onAddAppointment,
   onSelectAppointment,
 }: WeeklyHomeViewProps) {
@@ -85,10 +91,21 @@ export function WeeklyHomeView({
     }
   }
 
+  function getRoleBadgeClass(role?: string | null) {
+    switch (role) {
+      case "plaintiff_lawyer":
+        return "bg-sky-100 text-sky-900 border-sky-300";
+      case "defendant_lawyer":
+        return "bg-purple-100 text-purple-900 border-purple-300";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-300";
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header & Week Navigation */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-[28px] font-bold text-[#0f294a]">
             รายการนัดหมายประจำสัปดาห์
@@ -126,14 +143,16 @@ export function WeeklyHomeView({
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          <button
-            type="button"
-            onClick={() => onAddAppointment()}
-            className="btn-legal px-5 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-5 h-5" />
-            <span>เพิ่มนัดหมาย</span>
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => onAddAppointment()}
+              className="btn-legal px-5 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              <span>เพิ่มนัดหมาย</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,28 +167,31 @@ export function WeeklyHomeView({
 
       {/* Working Days List (Mon - Fri excluding Public Holidays) */}
       {workingDays.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-600 text-lg">
+        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-600 text-lg">
           สัปดาห์นี้เป็นวันหยุดราชการทั้งหมด
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {workingDays.map((day) => {
             const dayAppointments = appointmentsByDate.get(day.date) || [];
             return (
               <section
                 key={day.date}
-                className={`bg-white rounded-xl border overflow-hidden ${
-                  day.isToday ? "border-[#0f294a] ring-1 ring-[#0f294a]/20" : "border-slate-200"
+                className={`rounded-2xl border overflow-hidden shadow-xs ${
+                  day.isToday
+                    ? "border-[#0f294a] ring-1 ring-[#0f294a]/20 bg-slate-50/70"
+                    : "border-slate-200 bg-slate-50/60"
                 }`}
               >
+                {/* Day Header (Common Region) */}
                 <div
-                  className={`px-5 py-3.5 border-b flex items-center justify-between gap-3 ${
+                  className={`px-5 py-3.5 border-b flex flex-wrap items-center justify-between gap-3 ${
                     day.isToday
                       ? "bg-[#0f294a] text-white border-[#0f294a]"
-                      : "bg-slate-50 text-slate-900 border-slate-200"
+                      : "bg-white text-slate-900 border-slate-200"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
                     <CalendarCheck className="w-5 h-5 shrink-0" />
                     <h2 className="text-lg font-bold">
                       {day.label}
@@ -179,108 +201,181 @@ export function WeeklyHomeView({
                         </span>
                       )}
                     </h2>
+                    {dayAppointments.length > 0 && (
+                      <span
+                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                          day.isToday
+                            ? "bg-white/20 text-white"
+                            : "bg-[#0f294a]/10 text-[#0f294a]"
+                        }`}
+                      >
+                        {dayAppointments.length} นัดหมาย
+                      </span>
+                    )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onAddAppointment(day.date)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1 cursor-pointer transition ${
-                      day.isToday
-                        ? "bg-white/15 hover:bg-white/25 text-white"
-                        : "bg-white border border-slate-300 hover:bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>เพิ่มนัดวันนี้</span>
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      onClick={() => onAddAppointment(day.date)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-1 cursor-pointer transition ${
+                        day.isToday
+                          ? "bg-white/15 hover:bg-white/25 text-white"
+                          : "bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-800"
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>เพิ่มนัดวันนี้</span>
+                    </button>
+                  )}
                 </div>
 
                 {dayAppointments.length === 0 ? (
-                  <div className="px-5 py-6 text-slate-500 text-base">
+                  <div className="px-5 py-6 bg-white text-slate-500 text-base">
                     ไม่มีนัดหมาย
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-200">
-                    {dayAppointments.map((appt) => (
-                      <button
-                        key={appt.id}
-                        type="button"
-                        onClick={() => onSelectAppointment(appt)}
-                        className={`w-full text-left px-5 py-4 hover:bg-slate-50 transition flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer ${
-                          appt.status === "cancelled" ? "opacity-60" : ""
-                        }`}
-                      >
-                        <div className="space-y-1.5 flex-1">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            {/* 1. Start Time */}
-                            <span className="inline-flex items-center gap-1.5 font-bold text-[#0f294a] text-lg min-w-[105px]">
-                              <Clock className="w-4 h-4 text-slate-500" />
-                              {appt.start_time ? `${appt.start_time} น.` : "ไม่ระบุเวลา"}
-                            </span>
+                  <div className="p-3 sm:p-4 space-y-3">
+                    {dayAppointments.map((appt, index) => {
+                      const courtName =
+                        appt.court?.name ||
+                        appt.case?.court?.name ||
+                        appt.location ||
+                        "ไม่ระบุศาล/สถานที่";
+                      const plaintiff =
+                        appt.plaintiff_name || appt.case?.plaintiff_name || "";
+                      const defendant =
+                        appt.defendant_name || appt.case?.defendant_name || "";
+                      const ourRole = appt.our_role || appt.case?.our_role || null;
+                      const roleLabel = getOurRoleLabel(ourRole);
 
-                            {/* 2. Appointment Category & Type */}
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-sm font-semibold ${getCategoryBadgeClass(
-                                appt.category
-                              )}`}
-                            >
-                              {getCategoryLabel(appt.category)} : {appt.appointment_type}
-                            </span>
+                      return (
+                        <article
+                          key={appt.id}
+                          onClick={() => onSelectAppointment(appt)}
+                          className={`group rounded-xl bg-white border border-slate-200 hover:border-[#0f294a]/50 hover:shadow-md transition p-4 sm:p-5 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
+                            appt.status === "cancelled" ? "opacity-60" : ""
+                          }`}
+                        >
+                          <div className="space-y-3 flex-1 min-w-0">
+                            {/* 1. ศาล - ห้องพิจารณาคดี & 2. เลขคดี (Top Gestalt Priority) */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {dayAppointments.length > 1 && (
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#0f294a]/10 text-[#0f294a] text-xs font-bold shrink-0">
+                                  {index + 1}
+                                </span>
+                              )}
 
-                            {appt.status !== "scheduled" && (
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-semibold border ${
-                                  appt.status === "completed"
-                                    ? "bg-green-50 text-green-800 border-green-200"
-                                    : "bg-red-50 text-red-800 border-red-200"
-                                }`}
-                              >
-                                {getStatusLabel(appt.status)}
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 border border-slate-300 text-slate-900 font-bold text-sm sm:text-base">
+                                <Landmark className="w-4 h-4 text-[#0f294a] shrink-0" />
+                                <span>{courtName}</span>
                               </span>
-                            )}
-                          </div>
 
-                          {/* 3. Title */}
-                          <div className="text-lg font-bold text-slate-900">
-                            {appt.title}
-                          </div>
+                              {appt.courtroom && (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-950 font-bold text-sm sm:text-base">
+                                  <DoorOpen className="w-4 h-4 shrink-0" />
+                                  <span>{appt.courtroom}</span>
+                                </span>
+                              )}
 
-                          {/* 4. Black Case Number, 5. Court/Location, 6. Plaintiff & Defendant */}
-                          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-base text-slate-700">
-                            {appt.case && (
-                              <span className="inline-flex items-center gap-1.5 font-semibold text-[#0f294a]">
-                                <Scale className="w-4 h-4" />
-                                เลขคดีดำ: {appt.case.formatted_case_number}
-                              </span>
-                            )}
+                              {appt.case && (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0f294a] text-white font-bold text-sm sm:text-base">
+                                  <Scale className="w-4 h-4 shrink-0" />
+                                  <span>เลขคดี {appt.case.formatted_case_number}</span>
+                                </span>
+                              )}
 
-                            {(appt.location || appt.court?.name) && (
-                              <span className="inline-flex items-center gap-1.5">
-                                <MapPin className="w-4 h-4 text-slate-500" />
-                                {appt.location || appt.court?.name}
-                              </span>
-                            )}
+                              {roleLabel && (
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-sm font-bold ${getRoleBadgeClass(
+                                    ourRole
+                                  )}`}
+                                >
+                                  {roleLabel}
+                                </span>
+                              )}
 
-                            {appt.responsible_user && (
-                              <span className="inline-flex items-center gap-1.5 text-slate-600">
-                                <UserIcon className="w-4 h-4 text-slate-400" />
-                                {appt.responsible_user.full_name}
-                              </span>
-                            )}
-                          </div>
-
-                          {appt.case && (
-                            <div className="text-sm sm:text-base text-slate-600">
-                              <span className="font-semibold">โจทก์:</span>{" "}
-                              {appt.case.plaintiff_name}{" "}
-                              <span className="mx-1.5 text-slate-400">|</span>
-                              <span className="font-semibold">จำเลย:</span>{" "}
-                              {appt.case.defendant_name}
+                              {appt.sequence_note && (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-sm font-bold">
+                                  {appt.sequence_note}
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+
+                            {/* 3. โจทก์ - จำเลย */}
+                            {(plaintiff || defendant) && (
+                              <div className="px-3.5 py-2 rounded-lg bg-slate-50 border border-slate-200/80 text-sm sm:text-base text-slate-800 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span>
+                                  <strong className="text-slate-600">โจทก์:</strong>{" "}
+                                  <span className="font-semibold">{plaintiff || "-"}</span>
+                                </span>
+                                <span className="text-slate-300 hidden sm:inline">|</span>
+                                <span>
+                                  <strong className="text-slate-600">จำเลย:</strong>{" "}
+                                  <span className="font-semibold">{defendant || "-"}</span>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* 4. นัดเกี่ยวกับอะไร */}
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <span className="text-lg font-bold text-slate-900">
+                                {appt.title}
+                              </span>
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-md border text-xs sm:text-sm font-semibold ${getCategoryBadgeClass(
+                                  appt.category
+                                )}`}
+                              >
+                                {getCategoryLabel(appt.category)} : {appt.appointment_type}
+                              </span>
+                              {appt.status !== "scheduled" && (
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs sm:text-sm font-semibold border ${
+                                    appt.status === "completed"
+                                      ? "bg-green-50 text-green-800 border-green-200"
+                                      : "bg-red-50 text-red-800 border-red-200"
+                                  }`}
+                                >
+                                  {getStatusLabel(appt.status)}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* 5. นัดวัน-เวลาไหน (24 ชม. ไม่มีเวลาสิ้นสุด) & ผู้รับผิดชอบ */}
+                            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm sm:text-base text-slate-700">
+                              <span className="inline-flex items-center gap-1.5 font-bold text-[#0f294a]">
+                                <Clock className="w-4 h-4 text-slate-500" />
+                                {formatThaiShortDate(appt.appointment_date)} •{" "}
+                                {formatTime24(appt.start_time)}
+                              </span>
+
+                              {appt.responsible_user && (
+                                <span className="inline-flex items-center gap-1.5 text-slate-600">
+                                  <UserIcon className="w-4 h-4 text-slate-400" />
+                                  {appt.responsible_user.full_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Explicit "ดูรายละเอียด" Action Button */}
+                          <div className="shrink-0 flex items-center justify-end">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectAppointment(appt);
+                              }}
+                              className="px-4 py-2.5 rounded-xl bg-slate-100 group-hover:bg-[#0f294a] text-[#0f294a] group-hover:text-white font-semibold text-sm inline-flex items-center gap-2 transition cursor-pointer"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>ดูรายละเอียด</span>
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </section>

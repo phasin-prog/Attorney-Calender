@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Bell,
   Calendar,
+  Eye,
   FileText,
   Home,
+  LogIn,
   LogOut,
   Plus,
   Scale,
@@ -14,11 +17,6 @@ import {
   WifiOff,
 } from "lucide-react";
 import { AppointmentModal } from "@/components/AppointmentModal";
-import { CalendarView } from "@/components/CalendarView";
-import { CasesView } from "@/components/CasesView";
-import { LoginView } from "@/components/LoginView";
-import { NotificationsView } from "@/components/NotificationsView";
-import { SettingsView } from "@/components/SettingsView";
 import { WeeklyHomeView } from "@/components/WeeklyHomeView";
 import type {
   AppointmentTypeItem,
@@ -32,8 +30,30 @@ import type {
   User,
 } from "@/types/domain";
 
+const CalendarView = dynamic(
+  () => import("@/components/CalendarView").then((m) => m.CalendarView),
+  { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดปฏิทิน...</div> }
+);
+const CasesView = dynamic(
+  () => import("@/components/CasesView").then((m) => m.CasesView),
+  { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดข้อมูลคดี...</div> }
+);
+const NotificationsView = dynamic(
+  () => import("@/components/NotificationsView").then((m) => m.NotificationsView),
+  { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดการแจ้งเตือน...</div> }
+);
+const SettingsView = dynamic(
+  () => import("@/components/SettingsView").then((m) => m.SettingsView),
+  { loading: () => <div className="p-8 text-center text-slate-500">กำลังโหลดตั้งค่า...</div> }
+);
+const LoginView = dynamic(
+  () => import("@/components/LoginView").then((m) => m.LoginView),
+  { ssr: false }
+);
+
 interface BootstrapData {
-  currentUser: User;
+  currentUser: User | null;
+  isReadOnly?: boolean;
   users: User[];
   courts: Court[];
   case_categories: CaseCategory[];
@@ -59,9 +79,9 @@ type ConnectionStatus =
 export default function LawyerCalendarApp() {
   const [data, setData] = useState<BootstrapData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [unauthenticated, setUnauthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [connStatus, setConnStatus] = useState<ConnectionStatus>("Connecting");
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // Appointment Modal State
   const [apptModalOpen, setApptModalOpen] = useState(false);
@@ -69,27 +89,36 @@ export default function LawyerCalendarApp() {
   const [defaultApptDate, setDefaultApptDate] = useState<string | undefined>(undefined);
   const [defaultApptCase, setDefaultApptCase] = useState<CaseWithRelations | null>(null);
 
-  const loadBootstrap = useCallback(async () => {
+  const loadBootstrap = useCallback(async (scope: "full" | "dynamic" = "full") => {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setConnStatus("Offline");
       setLoading(false);
       return;
     }
     try {
-      const res = await fetch("/api/bootstrap", { cache: "no-store" });
-      if (res.status === 401) {
-        setUnauthenticated(true);
-        setData(null);
-        setConnStatus("Connected");
-        return;
-      }
+      const url = scope === "dynamic" ? "/api/bootstrap?scope=dynamic" : "/api/bootstrap";
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         setConnStatus("Offline");
         return;
       }
-      const json = (await res.json()) as BootstrapData;
-      setData(json);
-      setUnauthenticated(false);
+      const json = (await res.json()) as Partial<BootstrapData>;
+      if (scope === "dynamic") {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentUser: json.currentUser ?? prev.currentUser,
+                isReadOnly: json.isReadOnly ?? prev.isReadOnly,
+                cases: json.cases ?? prev.cases,
+                appointments: json.appointments ?? prev.appointments,
+                notifications: json.notifications ?? prev.notifications,
+              }
+            : (json as BootstrapData)
+        );
+      } else {
+        setData(json as BootstrapData);
+      }
       setConnStatus("Connected");
     } catch {
       setConnStatus("Offline");
@@ -99,44 +128,61 @@ export default function LawyerCalendarApp() {
   }, []);
 
   useEffect(() => {
-    loadBootstrap();
+    loadBootstrap("full");
 
     const handleOnline = () => {
       setConnStatus("Connecting");
-      loadBootstrap();
+      loadBootstrap("dynamic");
     };
     const handleOffline = () => setConnStatus("Offline");
-    const handleFocus = () => loadBootstrap();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadBootstrap("dynamic");
+      }
+    };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
 
-    const interval = setInterval(loadBootstrap, 15000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadBootstrap("dynamic");
+      }
+    }, 60000);
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
-      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
       clearInterval(interval);
     };
   }, [loadBootstrap]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    setData(null);
-    setUnauthenticated(true);
+    if (activeTab === "notifications" || activeTab === "settings") {
+      setActiveTab("home");
+    }
+    await loadBootstrap("full");
   }
 
   function handleSaveStatusChange(s: "saving" | "saved" | "failed") {
     if (s === "saving") setConnStatus("Saving");
     if (s === "saved") {
       setConnStatus("Saved");
-      setTimeout(() => setConnStatus("Connected"), 2500);
+      setTimeout(() => setConnStatus("Connected"), 2000);
     }
     if (s === "failed") setConnStatus("Save Failed");
   }
 
+  const isReadOnly = !data?.currentUser || Boolean(data?.isReadOnly);
+
   function openNewAppointment(dateStr?: string, linkedCase?: CaseWithRelations | null) {
+    if (isReadOnly) {
+      setLoginModalOpen(true);
+      return;
+    }
     setEditingAppt(null);
     setDefaultApptDate(dateStr);
     setDefaultApptCase(linkedCase || null);
@@ -150,16 +196,37 @@ export default function LawyerCalendarApp() {
     setApptModalOpen(true);
   }
 
-  if (loading) {
+  function handleAppointmentSaved(savedAppt?: AppointmentWithRelations) {
+    if (!savedAppt) {
+      loadBootstrap("dynamic");
+      return;
+    }
+    setData((prev) => {
+      if (!prev) return prev;
+      const exists = prev.appointments.some((a) => a.id === savedAppt.id);
+      const nextAppts = exists
+        ? prev.appointments.map((a) => (a.id === savedAppt.id ? savedAppt : a))
+        : [...prev.appointments, savedAppt];
+      return { ...prev, appointments: nextAppts };
+    });
+  }
+
+  function handleAppointmentDeleted(deletedId: string) {
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        appointments: prev.appointments.filter((a) => a.id !== deletedId),
+      };
+    });
+  }
+
+  if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-[#0f294a] text-xl font-semibold">
         กำลังโหลดระบบ Lawyer Calendar...
       </div>
     );
-  }
-
-  if (unauthenticated || !data) {
-    return <LoginView onSuccess={loadBootstrap} />;
   }
 
   const unreadCount = data.notifications.filter((n) => !n.is_read).length;
@@ -168,13 +235,17 @@ export default function LawyerCalendarApp() {
     { id: "home", label: "หน้าหลัก", icon: <Home className="w-5 h-5" /> },
     { id: "calendar", label: "ปฏิทินนัดหมาย", icon: <Calendar className="w-5 h-5" /> },
     { id: "cases", label: "ข้อมูลคดี", icon: <FileText className="w-5 h-5" /> },
-    {
-      id: "notifications",
-      label: "การแจ้งเตือน",
-      icon: <Bell className="w-5 h-5" />,
-      badge: unreadCount,
-    },
-    { id: "settings", label: "ตั้งค่า", icon: <Settings className="w-5 h-5" /> },
+    ...(!isReadOnly
+      ? [
+          {
+            id: "notifications" as NavTab,
+            label: "การแจ้งเตือน",
+            icon: <Bell className="w-5 h-5" />,
+            badge: unreadCount,
+          },
+          { id: "settings" as NavTab, label: "ตั้งค่า", icon: <Settings className="w-5 h-5" /> },
+        ]
+      : []),
   ];
 
   function renderStatusBadge() {
@@ -214,7 +285,7 @@ export default function LawyerCalendarApp() {
                 Lawyer Calendar
               </div>
               <div className="text-xs sm:text-sm text-slate-600">
-                {data.currentUser.full_name}
+                {data.currentUser ? data.currentUser.full_name : "ผู้เยี่ยมชม (โหมดดูอย่างเดียว)"}
               </div>
             </div>
           </div>
@@ -222,28 +293,47 @@ export default function LawyerCalendarApp() {
           <div className="flex flex-wrap items-center gap-2.5">
             {renderStatusBadge()}
 
-            <button
-              type="button"
-              onClick={() => openNewAppointment()}
-              className="btn-legal px-4 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-5 h-5" />
-              <span>เพิ่มนัดหมาย</span>
-            </button>
+            {isReadOnly ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                  <Eye className="w-4 h-4 text-slate-500" />
+                  <span>ดูอย่างเดียว (Read-Only)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLoginModalOpen(true)}
+                  className="btn-legal px-4 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>เข้าสู่ระบบเพื่อแก้ไข</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openNewAppointment()}
+                  className="btn-legal px-4 bg-[#0f294a] hover:bg-[#173b69] text-white inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>เพิ่มนัดหมาย</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="btn-legal px-3.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer"
-              title="ออกจากระบบ"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">ออกจากระบบ</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="btn-legal px-3.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 cursor-pointer"
+                  title="ออกจากระบบ"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">ออกจากระบบ</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* 5-Item Main Navigation */}
+        {/* Main Navigation */}
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 flex overflow-x-auto gap-1 border-t border-slate-100">
           {navItems.map((item) => {
             const active = activeTab === item.id;
@@ -277,6 +367,7 @@ export default function LawyerCalendarApp() {
           <WeeklyHomeView
             appointments={data.appointments}
             holidays={data.public_holidays}
+            isReadOnly={isReadOnly}
             onAddAppointment={(dateStr) => openNewAppointment(dateStr)}
             onSelectAppointment={openEditAppointment}
           />
@@ -287,6 +378,7 @@ export default function LawyerCalendarApp() {
             appointments={data.appointments}
             users={data.users}
             courts={data.courts}
+            isReadOnly={isReadOnly}
             onAddAppointment={(dateStr) => openNewAppointment(dateStr)}
             onSelectAppointment={openEditAppointment}
           />
@@ -300,21 +392,22 @@ export default function LawyerCalendarApp() {
             caseCategories={data.case_categories}
             users={data.users}
             currentUser={data.currentUser}
-            onRefresh={loadBootstrap}
+            isReadOnly={isReadOnly}
+            onRefresh={() => loadBootstrap("dynamic")}
             onAddAppointmentForCase={(c) => openNewAppointment(undefined, c)}
             onSelectAppointment={openEditAppointment}
             onSaveStatusChange={handleSaveStatusChange}
           />
         )}
 
-        {activeTab === "notifications" && (
+        {activeTab === "notifications" && !isReadOnly && (
           <NotificationsView
             notifications={data.notifications}
-            onRefresh={loadBootstrap}
+            onRefresh={() => loadBootstrap("dynamic")}
           />
         )}
 
-        {activeTab === "settings" && (
+        {activeTab === "settings" && !isReadOnly && data.currentUser && (
           <SettingsView
             currentUser={data.currentUser}
             users={data.users}
@@ -325,7 +418,7 @@ export default function LawyerCalendarApp() {
             deletedAppointments={data.deletedAppointments}
             deletedCases={data.deletedCases}
             auditLogs={data.audit_logs}
-            onRefresh={loadBootstrap}
+            onRefresh={() => loadBootstrap("full")}
           />
         )}
       </main>
@@ -336,13 +429,30 @@ export default function LawyerCalendarApp() {
           defaultDate={defaultApptDate}
           defaultCase={defaultApptCase}
           currentUser={data.currentUser}
+          isReadOnly={isReadOnly}
           users={data.users}
           courts={data.courts}
           cases={data.cases}
           appointmentTypes={data.appointment_types}
           onClose={() => setApptModalOpen(false)}
-          onSaved={loadBootstrap}
+          onSaved={handleAppointmentSaved}
+          onDeleted={handleAppointmentDeleted}
+          onRequestLogin={() => {
+            setApptModalOpen(false);
+            setLoginModalOpen(true);
+          }}
           onSaveStatusChange={handleSaveStatusChange}
+        />
+      )}
+
+      {loginModalOpen && (
+        <LoginView
+          asModal
+          onClose={() => setLoginModalOpen(false)}
+          onSuccess={async () => {
+            setLoginModalOpen(false);
+            await loadBootstrap("full");
+          }}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { addDays, format, parseISO, startOfWeek } from "date-fns";
-import type { PublicHoliday } from "@/types/domain";
+import type { OurRole, PublicHoliday } from "@/types/domain";
 
 const THAI_DAYS = [
   "วันอาทิตย์",
@@ -186,3 +186,34 @@ export function getCaseStatusLabel(status: "active" | "pending" | "closed"): str
       return "เสร็จสิ้นแล้ว";
   }
 }
+
+export function getOurRoleLabel(role?: OurRole | null): string {
+  switch (role) {
+    case "plaintiff_lawyer":
+      return "ทนายโจทก์";
+    case "defendant_lawyer":
+      return "ทนายจำเลย";
+    case "other":
+      return "อื่น ๆ";
+    default:
+      return "";
+  }
+}
+
+export function formatThaiNumericDate(dateStr: string): string {
+  if (!dateStr) return "-";
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y + 543}`;
+}
+
+export function formatTime24(startTime: string | null | undefined, endTime?: string | null): string {
+  if (!startTime) return "ไม่ระบุเวลา";
+  const s = startTime.slice(0, 5);
+  if (endTime) {
+    return `${s} - ${endTime.slice(0, 5)} น.`;
+  }
+  return `${s} น.`;
+}
+
+export { THAI_MONTHS, THAI_SHORT_MONTHS };

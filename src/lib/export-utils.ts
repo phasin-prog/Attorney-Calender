@@ -1,7 +1,14 @@
 import ExcelJS from "exceljs";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatThaiShortDate, getCategoryLabel, getStatusLabel } from "@/lib/thai-date";
+import {
+  formatThaiNumericDate,
+  formatThaiShortDate,
+  formatTime24,
+  getCategoryLabel,
+  getOurRoleLabel,
+  getStatusLabel,
+} from "@/lib/thai-date";
 import type { AppointmentWithRelations } from "@/types/domain";
 
 export async function exportAppointmentsToExcel(
@@ -12,14 +19,17 @@ export async function exportAppointmentsToExcel(
   const sheet = workbook.addWorksheet("ตารางนัดหมาย");
 
   sheet.columns = [
-    { header: "วันที่", key: "date", width: 18 },
-    { header: "เวลา", key: "time", width: 16 },
+    { header: "ศาล", key: "court", width: 26 },
+    { header: "ห้องพิจารณาคดี", key: "courtroom", width: 16 },
+    { header: "เลขคดี", key: "caseNumber", width: 18 },
+    { header: "โจทก์ / จำเลย", key: "parties", width: 36 },
+    { header: "ความเกี่ยวข้อง", key: "ourRole", width: 16 },
+    { header: "ลำดับที่", key: "sequenceNote", width: 16 },
+    { header: "นัดเกี่ยวกับอะไร", key: "title", width: 32 },
     { header: "กลุ่มนัดหมาย", key: "category", width: 20 },
     { header: "ประเภทนัดหมาย", key: "type", width: 22 },
-    { header: "ชื่อนัดหมาย", key: "title", width: 32 },
-    { header: "หมายเลขคดีดำ", key: "caseNumber", width: 18 },
-    { header: "โจทก์ / จำเลย", key: "parties", width: 36 },
-    { header: "ศาล / สถานที่", key: "location", width: 28 },
+    { header: "วันที่ (พ.ศ.)", key: "date", width: 18 },
+    { header: "เวลา (24 ชม.)", key: "time", width: 16 },
     { header: "ผู้รับผิดชอบ", key: "owner", width: 24 },
     { header: "สถานะ", key: "status", width: 14 },
   ];
@@ -33,23 +43,21 @@ export async function exportAppointmentsToExcel(
   };
 
   for (const a of appointments) {
-    const timeRange = a.start_time
-      ? a.end_time
-        ? `${a.start_time} - ${a.end_time}`
-        : `${a.start_time} น.`
-      : "ไม่ระบุเวลา";
-    const parties = a.case
-      ? `${a.case.plaintiff_name} / ${a.case.defendant_name}`
-      : "-";
+    const plaintiff = a.plaintiff_name || a.case?.plaintiff_name || "";
+    const defendant = a.defendant_name || a.case?.defendant_name || "";
+    const parties = plaintiff || defendant ? `${plaintiff || "-"} / ${defendant || "-"}` : "-";
     sheet.addRow({
+      caseNumber: a.case?.formatted_case_number || "-",
+      court: a.court?.name || a.case?.court?.name || a.location || "-",
+      courtroom: a.courtroom || "-",
       date: formatThaiShortDate(a.appointment_date),
-      time: timeRange,
+      time: formatTime24(a.start_time),
+      ourRole: getOurRoleLabel(a.our_role || a.case?.our_role) || "-",
+      sequenceNote: a.sequence_note || "-",
+      parties,
       category: getCategoryLabel(a.category),
       type: a.appointment_type,
       title: a.title,
-      caseNumber: a.case?.formatted_case_number || "-",
-      parties,
-      location: a.location || a.court?.name || "-",
       owner: a.responsible_user?.full_name || "-",
       status: getStatusLabel(a.status),
     });
@@ -77,14 +85,23 @@ export function exportAppointmentsToPdf(
 
   autoTable(doc, {
     startY: 24,
-    head: [["Date", "Time", "Type", "Title", "Case No.", "Location", "Responsible", "Status"]],
+    head: [
+      [
+        "Case No.",
+        "Court / Room",
+        "Date (B.E.)",
+        "Time (24h)",
+        "Title",
+        "Responsible",
+        "Status",
+      ],
+    ],
     body: appointments.map((a) => [
-      a.appointment_date,
-      a.start_time ? `${a.start_time}${a.end_time ? `-${a.end_time}` : ""}` : "-",
-      a.category.toUpperCase(),
-      a.title,
       a.case?.formatted_case_number || "-",
-      a.location || a.court?.name || "-",
+      [a.court?.name || a.location, a.courtroom].filter(Boolean).join(" / ") || "-",
+      formatThaiNumericDate(a.appointment_date),
+      a.start_time ? `${a.start_time}${a.end_time ? `-${a.end_time}` : ""}` : "-",
+      a.title,
       a.responsible_user?.full_name || "-",
       a.status,
     ]),
